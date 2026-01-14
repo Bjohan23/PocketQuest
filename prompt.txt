@@ -1,0 +1,177 @@
+Idioma: Español
+Rol: Actúa como un ingeniero senior en desarrollo móvil con React Native y TypeScript.
+Objetivo: Crear una aplicación móvil educativa y experimental que explore arquitectura modular, separación de contextos y diseño UI multi-modo.
+
+CONTEXTO
+
+La aplicación se llama Pocket Quest y es un proyecto educativo para aprender arquitectura móvil, navegación avanzada y preparación para mensajería privada.
+
+La app contiene dos modos funcionales independientes:
+
+Un modo de juego casual
+
+Un modo de comunicación privada
+
+Ambos modos conviven dentro de la misma aplicación, pero están claramente separados a nivel de estado y navegación.
+
+El objetivo es arquitectura, UI y estructura, no evasión ni ocultamiento.
+
+TECNOLOGÍAS
+
+React Native (CLI, no Expo managed)
+
+TypeScript
+
+React Navigation
+
+Zustand o Redux Toolkit
+
+Axios
+
+WebSocket client (preparación)
+
+Secure Storage (Keychain / Keystore)
+
+No usar Firebase ni servicios externos.
+No implementar cifrado real todavía.
+
+ESTRUCTURA DEL PROYECTO
+src/
+├── navigation/
+├── screens/
+│   ├── game/
+│   ├── access/
+│   └── communication/
+├── components/
+├── store/
+├── services/
+├── hooks/
+├── utils/
+└── App.tsx
+
+MODO JUEGO
+
+Pantallas:
+
+GameHomeScreen
+
+GameSettingsScreen
+
+GameHome:
+
+UI de juego casual
+
+Nivel, vidas, monedas (mock)
+
+Botones: Jugar, Tienda, Configuración
+
+GameSettings:
+
+Preferencias de sonido
+
+Idioma
+
+Campo “Acceso avanzado” (input de texto)
+
+Botón “Continuar”
+
+ACCESO AL MODO DE COMUNICACIÓN
+
+Pantalla:
+
+AccessScreen
+
+Input tipo contraseña
+
+Botón “Ingresar”
+
+Validación simulada.
+Al ingresar correctamente, se habilita el modo de comunicación.
+
+MODO DE COMUNICACIÓN
+
+Pantallas:
+
+ConversationListScreen
+
+ConversationScreen
+
+ConversationSettingsScreen
+
+ConversationList:
+
+Lista de conversaciones (mock)
+
+Indicadores de estado simulados
+
+ConversationScreen:
+
+Burbujas de mensajes
+
+Input de texto
+
+Botón enviar
+
+Botón adjuntar (solo UI)
+
+ConversationSettings:
+
+Configuración de mensajes temporales (UI)
+
+Opción limpiar conversación (visual)
+
+CONTROL DE SESIÓN Y CONTEXTO
+
+Implementar un mecanismo de cambio rápido de contexto:
+
+Permite volver instantáneamente al modo juego
+
+Resetea el estado de comunicación
+
+Evita navegación hacia atrás no deseada
+
+Este mecanismo debe estar implementado a nivel de estado global y navegación.
+
+NOTIFICACIONES (SIMULADAS)
+
+Simular notificaciones genéricas relacionadas al juego:
+
+“Nuevo desafío disponible”
+
+“Recompensas pendientes”
+
+“Contenido nuevo desbloqueado”
+
+No mostrar contenido de mensajes.
+
+CALIDAD
+
+Tipado estricto
+
+Componentes reutilizables
+
+Separación clara UI / lógica
+
+Código comentado
+
+Preparado para conectar backend NestJS más adelante
+
+FORMA DE TRABAJO
+
+Construir la app paso a paso:
+
+Inicialización
+
+Navegación
+
+Modo juego
+
+Acceso
+
+Modo comunicación
+
+Control de contexto
+
+NOTA FINAL
+
+El proyecto es educativo y experimental, enfocado en buenas prácticas de arquitectura móvil y privacidad del usuario.

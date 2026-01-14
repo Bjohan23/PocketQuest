@@ -1,45 +1,48 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
+ * Pocket Quest - Aplicación Móvil Educativa
+ * Arquitectura modular con separación de contextos
  *
  * @format
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import React from 'react';
+import { StatusBar } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { NavigationContainer } from '@react-navigation/native';
+import RootNavigation from './src/navigation/RootNavigation';
+import { useAppStore } from './src/store/useAppStore';
+import { notificationService } from './src/services/notificationService';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+/**
+ * Componente principal de la aplicación
+ */
+function App(): React.JSX.Element {
+  const addNotification = useAppStore((state) => state.addNotification);
+
+  // Inicializar notificaciones simuladas al inicio
+  React.useEffect(() => {
+    // Agregar notificación de bienvenida
+    const welcomeNotification = notificationService.createNotification(
+      'Bienvenido a Pocket Quest',
+      '¡Tu aventura está a punto de comenzar!',
+      'game',
+    );
+
+    addNotification(welcomeNotification);
+  }, [addNotification]);
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#4A90E2"
+      />
+
+      <NavigationContainer>
+        <RootNavigation />
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 }
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
 
 export default App;
