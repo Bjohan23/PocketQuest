@@ -12,17 +12,8 @@ import {
   SafeAreaView,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withSequence,
-  withDelay,
-  runOnJS,
-  Easing,
-} from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import reactNativeHapticFeedback from 'react-native-haptic-feedback';
@@ -89,8 +80,8 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Valores de animación
-  const screenShake = useSharedValue(0);
-  const comboScale = useSharedValue(1);
+  const shakeValue = useRef(new Animated.Value(0)).current;
+  const comboScaleValue = useRef(new Animated.Value(1)).current;
 
   /**
    * Iniciar el juego
@@ -206,12 +197,12 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
       // Bomba resetea combo y quita puntos
       newCombo = 0;
       // Screen shake
-      screenShake.value = withSequence(
-        withTiming(-10, { duration: 50 }),
-        withTiming(10, { duration: 50 }),
-        withTiming(-10, { duration: 50 }),
-        withTiming(0, { duration: 50 })
-      );
+      Animated.sequence([
+        Animated.timing(shakeValue, { toValue: -10, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeValue, { toValue: 10, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeValue, { toValue: -10, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeValue, { toValue: 0, duration: 50, useNativeDriver: true }),
+      ]).start();
     } else {
       // Incrementar combo
       newCombo += 1;
@@ -222,10 +213,10 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
       points = points * comboMultiplier;
 
       // Combo animation
-      comboScale.value = withSequence(
-        withSpring(1.3, { damping: 10, stiffness: 400 }),
-        withSpring(1, { damping: 10, stiffness: 400 })
-      );
+      Animated.sequence([
+        Animated.timing(comboScaleValue, { toValue: 1.3, duration: 150, useNativeDriver: true }),
+        Animated.timing(comboScaleValue, { toValue: 1, duration: 150, useNativeDriver: true }),
+      ]).start();
     }
 
     setCombo(newCombo);
@@ -239,7 +230,7 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
     comboTimeoutRef.current = setTimeout(() => {
       setCombo(0);
     }, 2000);
-  }, [gameState, moles, combo, screenShake, comboScale]);
+  }, [gameState, moles, combo, shakeValue, comboScaleValue]);
 
   /**
    * Pausar el juego
@@ -323,14 +314,14 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
   }, [gameState, showMole, endGame, timeLeft]);
 
   // Estilo animado de screen shake
-  const shakeAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: screenShake.value }],
-  }));
+  const shakeAnimatedStyle = {
+    transform: [{ translateX: shakeValue }],
+  };
 
   // Estilo animado de combo
-  const comboAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: comboScale.value }],
-  }));
+  const comboAnimatedStyle = {
+    transform: [{ scale: comboScaleValue }],
+  };
 
   /**
    * Renderizar un topo
@@ -350,12 +341,6 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
       return Colors.primary;
     };
 
-    // Estilo animado para la visibilidad del topo
-    const moleAnimatedStyle = useAnimatedStyle(() => ({
-      opacity: mole.isVisible ? 1 : 0,
-      transform: [{ scale: mole.isVisible ? 1 : 0 }],
-    }));
-
     return (
       <TouchableOpacity
         key={mole.id}
@@ -367,13 +352,16 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
         activeOpacity={0.8}
         disabled={!mole.isVisible}
       >
-        <Animated.View style={[styles.mole, moleAnimatedStyle]}>
+        <View style={[
+          styles.mole,
+          mole.isVisible ? styles.moleVisible : styles.moleHidden
+        ]}>
           <Icon
             name={getMoleIcon()}
             size="xl"
             color={getMoleColor()}
           />
-        </Animated.View>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -641,6 +629,14 @@ const styles = StyleSheet.create({
   mole: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  moleVisible: {
+    opacity: 1,
+    transform: [{ scale: 1 }],
+  },
+  moleHidden: {
+    opacity: 0,
+    transform: [{ scale: 0 }],
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

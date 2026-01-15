@@ -3,7 +3,7 @@
  * UI de juego casual con estadísticas, animaciones y acciones
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,8 @@ import {
   TouchableOpacity,
   Platform,
   Modal,
+  Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
-  withDelay,
-  runOnJS,
-} from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameStackParamList } from '../../types';
@@ -38,12 +31,12 @@ const GameHomeScreen = (): React.JSX.Element => {
   // Estado del juego desde el store
   const { level, lives, coins, experience, addNotification } = useAppStore();
 
-  // Valores para animaciones
-  const headerOpacity = useSharedValue(0);
-  const headerTranslateY = useSharedValue(-20);
-  const statsScale = useSharedValue(0.8);
-  const statsOpacity = useSharedValue(0);
-  const buttonTranslateY = useSharedValue(50);
+  // Valores para animaciones - Animated API nativa
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const headerTranslateY = useRef(new Animated.Value(-20)).current;
+  const statsScale = useRef(new Animated.Value(0.8)).current;
+  const statsOpacity = useRef(new Animated.Value(0)).current;
+  const buttonTranslateY = useRef(new Animated.Value(50)).current;
 
   // Estado para el modal de selección de juegos
   const [showGameSelector, setShowGameSelector] = useState(false);
@@ -51,31 +44,58 @@ const GameHomeScreen = (): React.JSX.Element => {
   // Animaciones de entrada al montar
   useEffect(() => {
     // Header animation
-    headerOpacity.value = withSpring(1, { damping: 15, stiffness: 100 });
-    headerTranslateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+    Animated.parallel([
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerTranslateY, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     // Stats animation
-    statsScale.value = withSpring(1, { damping: 15, stiffness: 100 });
-    statsOpacity.value = withSpring(1, { damping: 15, stiffness: 100 });
+    Animated.parallel([
+      Animated.timing(statsScale, {
+        toValue: 1,
+        duration: 500,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(statsOpacity, {
+        toValue: 1,
+        duration: 500,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     // Buttons animation
-    buttonTranslateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+    Animated.timing(buttonTranslateY, {
+      toValue: 0,
+      duration: 600,
+      delay: 400,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   // Estilos animados
-  const headerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: headerOpacity.value,
-    transform: [{ translateY: headerTranslateY.value }],
-  }));
+  const headerAnimatedStyle = {
+    opacity: headerOpacity,
+    transform: [{ translateY: headerTranslateY }],
+  };
 
-  const statsAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: statsOpacity.value,
-    transform: [{ scale: statsScale.value }],
-  }));
+  const statsAnimatedStyle = {
+    opacity: statsOpacity,
+    transform: [{ scale: statsScale }],
+  };
 
-  const buttonsAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: buttonTranslateY.value }],
-  }));
+  const buttonsAnimatedStyle = {
+    transform: [{ translateY: buttonTranslateY }],
+  };
 
   /**
    * Navega a la pantalla de juego

@@ -3,14 +3,8 @@
  * Sección expandible con animación suave
  */
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  measure,
-} from 'react-native-reanimated';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ViewStyle, Animated } from 'react-native';
 import { Colors, Spacing, BorderRadius, Typography } from '../../theme';
 import Icon from './Icon';
 
@@ -64,34 +58,46 @@ const Accordion: React.FC<AccordionProps> = ({
   iconColor = Colors.primary,
 }) => {
   const [isOpen, setIsOpen] = useState(initiallyOpen);
-  const animatedHeight = useSharedValue(initiallyOpen ? 1 : 0);
-  const animatedRotation = useSharedValue(initiallyOpen ? 1 : 0);
+  const animatedHeight = useRef(new Animated.Value(initiallyOpen ? 1 : 0)).current;
+  const animatedRotation = useRef(new Animated.Value(initiallyOpen ? 1 : 0)).current;
 
   /**
    * Toggle del acordeón
    */
   const toggle = () => {
+    const newValue = isOpen ? 0 : 1;
     setIsOpen(!isOpen);
-    animatedHeight.value = withSpring(isOpen ? 0 : 1, {
-      damping: 20,
-      stiffness: 100,
-    });
-    animatedRotation.value = withSpring(isOpen ? 0 : 1, {
-      damping: 20,
-      stiffness: 100,
-    });
+    Animated.parallel([
+      Animated.timing(animatedHeight, {
+        toValue: newValue,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animatedRotation, {
+        toValue: newValue,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   // Estilo animado para la altura
-  const heightAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: animatedHeight.value,
-    transform: [{ scaleY: animatedHeight.value }],
-  }));
+  const heightAnimatedStyle = {
+    opacity: animatedHeight,
+    transform: [{ scaleY: animatedHeight }],
+  };
 
   // Estilo animado para la rotación de la flecha
-  const rotationAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${animatedRotation.value * 90}deg` }],
-  }));
+  const rotationAnimatedStyle = {
+    transform: [
+      {
+        rotate: animatedRotation.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['0deg', '90deg'],
+        }),
+      },
+    ],
+  };
 
   return (
     <View style={[styles.container, style]}>

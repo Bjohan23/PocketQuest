@@ -3,7 +3,7 @@
  * Preferencias del juego con iconos, acordeones y animaciones
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,8 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
 import { APP_CONFIG } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { Colors, Spacing, Typography, BorderRadius } from '../../theme';
@@ -31,20 +27,30 @@ const GameSettingsScreen = (): React.JSX.Element => {
   const [showAdvancedAccess, setShowAdvancedAccess] = useState(false);
 
   // Valores para animaciones
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(20);
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
 
   // Animación de entrada
   useEffect(() => {
-    opacity.value = withSpring(1, { damping: 15, stiffness: 100 });
-    translateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   // Estilo animado
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedStyle = {
+    opacity,
+    transform: [{ translateY }],
+  };
 
   /**
    * Maneja el cambio de idioma

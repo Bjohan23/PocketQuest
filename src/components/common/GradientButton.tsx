@@ -1,6 +1,6 @@
 /**
  * Componente GradientButton
- * Botón con gradiente, icono opcional y animación de press
+ * Botón con gradiente, icono opcional
  */
 
 import React from 'react';
@@ -14,18 +14,8 @@ import {
   Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 import { Colors, BorderRadius, Spacing } from '../../theme';
 import Icon, { IconProps } from './Icon';
-
-// Configuración de Reanimated
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export type GradientVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'game';
 
@@ -79,7 +69,7 @@ const getPadding = (size: 'small' | 'medium' | 'large'): { vertical: number; hor
 };
 
 /**
- * Componente de botón con gradiente y animación
+ * Componente de botón con gradiente (sin animaciones complejas)
  */
 const GradientButton: React.FC<GradientButtonProps> = ({
   title,
@@ -94,48 +84,21 @@ const GradientButton: React.FC<GradientButtonProps> = ({
   fullWidth = false,
   size = 'medium',
 }) => {
-  // Valores para animación
-  const scale = useSharedValue(1);
-
-  /**
-   * Maneja el inicio del press
-   */
-  const handlePressIn = () => {
-    if (disabled || loading) return;
-    scale.value = withSpring(0.95, { damping: 15, stiffness: 400 });
-  };
-
-  /**
-   * Maneja el final del press
-   */
-  const handlePressOut = () => {
-    if (disabled || loading) return;
-    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-  };
-
-  // Estilo animado
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
   const gradientColors = getGradientColors(variant);
   const padding = getPadding(size);
   const fontSize = size === 'large' ? 18 : size === 'small' ? 14 : 16;
 
   return (
-    <AnimatedTouchableOpacity
+    <TouchableOpacity
       style={[
         styles.button,
-        animatedStyle,
         fullWidth && styles.fullWidth,
         disabled && styles.buttonDisabled,
         style,
       ]}
       onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       disabled={disabled || loading}
-      activeOpacity={0.9}
+      activeOpacity={0.8}
     >
       <LinearGradient
         colors={gradientColors}
@@ -174,7 +137,7 @@ const GradientButton: React.FC<GradientButtonProps> = ({
           </>
         )}
       </LinearGradient>
-    </AnimatedTouchableOpacity>
+    </TouchableOpacity>
   );
 };
 

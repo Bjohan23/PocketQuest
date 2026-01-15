@@ -12,15 +12,8 @@ import {
   SafeAreaView,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withSequence,
-  runOnJS,
-} from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import reactNativeHapticFeedback from 'react-native-haptic-feedback';
@@ -81,7 +74,7 @@ const SnakeGameScreen = (): React.JSX.Element => {
   const gameTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Valores de animación
-  const scale = useSharedValue(1);
+  const scaleValue = useRef(new Animated.Value(1)).current;
 
   /**
    * Generar posición aleatoria para comida
@@ -192,10 +185,18 @@ const SnakeGameScreen = (): React.JSX.Element => {
         setFoodsEaten(prev => prev + 1);
 
         // Animación de escala
-        scale.value = withSequence(
-          withSpring(1.1, { damping: 10, stiffness: 400 }),
-          withSpring(1, { damping: 10, stiffness: 400 })
-        );
+        Animated.sequence([
+          Animated.timing(scaleValue, {
+            toValue: 1.1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleValue, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+        ]).start();
 
         // Generar nueva comida
         const newFoodPos = generateFoodPosition();
@@ -215,7 +216,7 @@ const SnakeGameScreen = (): React.JSX.Element => {
     });
 
     setDirection(nextDirection);
-  }, [gameState, direction, nextDirection, food, speed, scale, generateFoodPosition]);
+  }, [gameState, direction, nextDirection, food, speed, scaleValue, generateFoodPosition]);
 
   /**
    * Game loop
@@ -307,9 +308,9 @@ const SnakeGameScreen = (): React.JSX.Element => {
   }, [navigation]);
 
   // Estilo animado
-  const scaleAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const scaleAnimatedStyle = {
+    transform: [{ scale: scaleValue }],
+  };
 
   /**
    * Renderizar la serpiente

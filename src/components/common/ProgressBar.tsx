@@ -1,16 +1,10 @@
 /**
  * Componente ProgressBar
- * Barra de progreso animada con colores personalizables
+ * Barra de progreso con colores personalizables
  */
 
-import React, { useEffect } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, ViewStyle, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Colors, BorderRadius, Spacing } from '../../theme';
 
@@ -70,23 +64,20 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   animated = true,
 }) => {
   // Valor de progreso animado
-  const animatedProgress = useSharedValue(0);
+  const animatedProgress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    const targetValue = Math.min(Math.max(progress, 0), 100) / 100;
     if (animated) {
-      animatedProgress.value = withTiming(Math.min(Math.max(progress, 0), 100) / 100, {
+      Animated.timing(animatedProgress, {
+        toValue: targetValue,
         duration: animationDuration,
-        easing: Easing.bezier(0.4, 0, 0.2, 1),
-      });
+        useNativeDriver: false, // width no es soportado por native driver
+      }).start();
     } else {
-      animatedProgress.value = Math.min(Math.max(progress, 0), 100) / 100;
+      animatedProgress.setValue(targetValue);
     }
-  }, [progress, animated, animationDuration]);
-
-  // Estilo animado del width
-  const animatedStyle = useAnimatedStyle(() => ({
-    width: `${animatedProgress.value * 100}%`,
-  }));
+  }, [progress, animated, animationDuration, animatedProgress]);
 
   // Determinar si usar gradiente o color sólido
   const useGradient = Array.isArray(color);
@@ -104,7 +95,10 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
         style,
       ]}
     >
-      <Animated.View style={[styles.progressContainer, animatedStyle]}>
+      <Animated.View style={[styles.progressContainer, { width: animatedProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0%', '100%'],
+      }) }]}>
         {useGradient ? (
           <LinearGradient
             colors={gradientColors}

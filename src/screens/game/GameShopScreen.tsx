@@ -3,7 +3,7 @@
  * Sistema de compras con power-ups, vidas y monedas
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,8 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Alert,
+  Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameStackParamList } from '../../types';
@@ -146,20 +142,30 @@ const GameShopScreen = (): React.JSX.Element => {
   const [purchasedItems, setPurchasedItems] = useState<string[]>([]);
 
   // Valores de animación
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(20);
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
 
   // Animación de entrada
-  React.useEffect(() => {
-    opacity.value = withSpring(1, { damping: 15, stiffness: 100 });
-    translateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   // Estilo animado
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedStyle = {
+    opacity,
+    transform: [{ translateY }],
+  };
 
   /**
    * Filtrar items por categoría

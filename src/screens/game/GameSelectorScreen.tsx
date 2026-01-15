@@ -3,7 +3,7 @@
  * Permite elegir entre diferentes mini-juegos disponibles
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,8 @@ import {
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withDelay,
-} from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameStackParamList } from '../../types';
@@ -67,20 +62,30 @@ const GameSelectorScreen = ({ closeModal }: { closeModal?: () => void }): React.
   const navigation = useNavigation<NavigationProps>();
 
   // Valores de animación
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(50);
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(50)).current;
 
   // Animaciones de entrada
   useEffect(() => {
-    opacity.value = withSpring(1, { damping: 15, stiffness: 100 });
-    translateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   // Estilos animados
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedStyle = {
+    opacity,
+    transform: [{ translateY }],
+  };
 
   /**
    * Navegar al juego seleccionado
@@ -96,19 +101,32 @@ const GameSelectorScreen = ({ closeModal }: { closeModal?: () => void }): React.
    * Renderizar tarjeta de juego
    */
   const renderGameCard = (game: GameOption, index: number) => {
-    const cardOpacity = useSharedValue(0);
-    const cardTranslateY = useSharedValue(50);
+    const cardOpacity = useRef(new Animated.Value(0)).current;
+    const cardTranslateY = useRef(new Animated.Value(50)).current;
 
     // Animación escalonada
     useEffect(() => {
-      cardOpacity.value = withDelay(index * 100, withSpring(1, { damping: 15, stiffness: 100 }));
-      cardTranslateY.value = withDelay(index * 100, withSpring(0, { damping: 15, stiffness: 100 }));
-    }, []);
+      const delay = index * 100;
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(cardOpacity, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(cardTranslateY, {
+            toValue: 0,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, delay);
+    }, [index]);
 
-    const cardAnimatedStyle = useAnimatedStyle(() => ({
-      opacity: cardOpacity.value,
-      transform: [{ translateY: cardTranslateY.value }],
-    }));
+    const cardAnimatedStyle = {
+      opacity: cardOpacity,
+      transform: [{ translateY: cardTranslateY }],
+    };
 
     return (
       <Animated.View key={game.id} style={cardAnimatedStyle}>

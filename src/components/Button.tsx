@@ -1,6 +1,6 @@
 /**
  * Componente de Botón Reutilizable
- * Botón personalizado con diferentes variantes, estilos, iconos y animaciones
+ * Botón personalizado con diferentes variantes, estilos, iconos
  */
 
 import React from 'react';
@@ -13,16 +13,8 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
 import { Colors, BorderRadius, Spacing } from '../theme';
 import Icon from './common/Icon';
-
-// Configuración de Reanimated
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning';
 
@@ -121,34 +113,11 @@ const Button = ({
   fullWidth = false,
   size = 'medium',
 }: ButtonProps): React.JSX.Element => {
-  const scale = useSharedValue(1);
-
-  /**
-   * Maneja el inicio del press
-   */
-  const handlePressIn = () => {
-    if (disabled || loading) return;
-    scale.value = withSpring(0.95, { damping: 15, stiffness: 400 });
-  };
-
-  /**
-   * Maneja el final del press
-   */
-  const handlePressOut = () => {
-    if (disabled || loading) return;
-    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-  };
-
   const variantStyles = getVariantStyles(variant);
   const sizeStyles = getSizeStyles(size);
 
-  // Estilo animado
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
   return (
-    <AnimatedTouchableOpacity
+    <TouchableOpacity
       style={[
         styles.button,
         { backgroundColor: variantStyles.backgroundColor },
@@ -158,8 +127,6 @@ const Button = ({
         style,
       ]}
       onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       disabled={disabled || loading}
       activeOpacity={0.7}
     >
@@ -186,7 +153,7 @@ const Button = ({
           </Text>
         </>
       )}
-    </AnimatedTouchableOpacity>
+    </TouchableOpacity>
   );
 };
 
