@@ -1,21 +1,32 @@
 /**
- * Pantalla Principal del Modo Juego
- * UI de juego casual con estadísticas y acciones
+ * Pantalla Principal del Modo Juego - Rediseño Moderno
+ * UI de juego casual con estadísticas, animaciones y acciones
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withDelay,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameStackParamList } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
+import { Colors, Spacing, Typography, BorderRadius } from '../../theme';
+import { Icon, StatCard, GradientButton, ProgressBar } from '../../components';
 
 type NavigationProps = NativeStackNavigationProp<GameStackParamList, 'GameHome'>;
 
@@ -25,25 +36,58 @@ const GameHomeScreen = (): React.JSX.Element => {
   // Estado del juego desde el store
   const { level, lives, coins, experience, addNotification } = useAppStore();
 
+  // Valores para animaciones
+  const headerOpacity = useSharedValue(0);
+  const headerTranslateY = useSharedValue(-20);
+  const statsScale = useSharedValue(0.8);
+  const statsOpacity = useSharedValue(0);
+  const buttonTranslateY = useSharedValue(50);
+
+  // Animaciones de entrada al montar
+  useEffect(() => {
+    // Header animation
+    headerOpacity.value = withSpring(1, { damping: 15, stiffness: 100 });
+    headerTranslateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+
+    // Stats animation
+    statsScale.value = withSpring(1, { damping: 15, stiffness: 100 });
+    statsOpacity.value = withSpring(1, { damping: 15, stiffness: 100 });
+
+    // Buttons animation
+    buttonTranslateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+  }, []);
+
+  // Estilos animados
+  const headerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+    transform: [{ translateY: headerTranslateY.value }],
+  }));
+
+  const statsAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: statsOpacity.value,
+    transform: [{ scale: statsScale.value }],
+  }));
+
+  const buttonsAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: buttonTranslateY.value }],
+  }));
+
   /**
    * Navega a la pantalla de juego
-   * Simula el inicio de una partida
    */
   const handlePlay = () => {
-    // Simular notificación de juego
     addNotification({
       title: '¡A Jugar!',
-      message: 'Partida iniciada',
+      message: 'Iniciando partida...',
       type: 'game',
     });
 
-    // Aquí iría la lógica real del juego
-    console.log('Iniciando partida...');
+    // Navegar al juego Whack-a-Mole
+    navigation.navigate('WhackAMoleGame' as any);
   };
 
   /**
    * Navega a la tienda del juego
-   * Simula la apertura de la tienda
    */
   const handleShop = () => {
     addNotification({
@@ -65,92 +109,121 @@ const GameHomeScreen = (): React.JSX.Element => {
    */
   const getLevelProgress = (): number => {
     const experiencePerLevel = 100;
-    return (experience % experiencePerLevel) / experiencePerLevel;
+    return (experience % experiencePerLevel);
   };
+
+  const currentLevelProgress = getLevelProgress();
+  const maxProgress = 100;
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header del Juego */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Pocket Quest</Text>
-          <Text style={styles.subtitle}>Aventura Casual</Text>
-        </View>
+        <Animated.View style={[styles.header, headerAnimatedStyle]}>
+          <View style={styles.headerTop}>
+            <View style={styles.avatarContainer}>
+              <Icon name="person-circle" size="xl" color={Colors.primary} />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Pocket Quest</Text>
+              <Text style={styles.subtitle}>Aventura Casual</Text>
+            </View>
+          </View>
+        </Animated.View>
 
         {/* Panel de Estadísticas */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Nivel</Text>
-              <Text style={styles.statValue}>{level}</Text>
-            </View>
-
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Vidas</Text>
-              <View style={styles.livesContainer}>
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.heart,
-                      { opacity: index < lives ? 1 : 0.3 }]}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Monedas</Text>
-              <Text style={styles.statValue}>{coins}</Text>
-            </View>
+        <Animated.View style={[statsAnimatedStyle, styles.statsSection]}>
+          <View style={styles.statsRow}>
+            <StatCard
+              icon="star"
+              value={level}
+              label="Nivel"
+              variant="level"
+              size="medium"
+              style={styles.statCard}
+            />
+            <StatCard
+              icon="heart"
+              value={lives}
+              label="Vidas"
+              variant="lives"
+              size="medium"
+              style={styles.statCard}
+            />
+            <StatCard
+              icon="cash"
+              value={coins}
+              label="Monedas"
+              variant="coins"
+              size="medium"
+              style={styles.statCard}
+            />
           </View>
 
           {/* Barra de Experiencia */}
           <View style={styles.experienceContainer}>
-            <Text style={styles.experienceText}>Experiencia</Text>
-            <View style={styles.experienceBar}>
-              <View style={[styles.experienceFill, { width: `${getLevelProgress() * 100}%` }]} />
+            <View style={styles.experienceHeader}>
+              <Text style={styles.experienceLabel}>Experiencia</Text>
+              <Text style={styles.experienceValue}>{currentLevelProgress}/{maxProgress} XP</Text>
             </View>
-            <Text style={styles.experienceValue}>{experience % 100}/100 XP</Text>
+            <ProgressBar
+              progress={currentLevelProgress}
+              color={Colors.gradientSuccess}
+              height={12}
+              animated
+            />
           </View>
-        </View>
+        </Animated.View>
 
         {/* Botones de Acción */}
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.playButton]}
+        <Animated.View style={[buttonsAnimatedStyle, styles.actionsSection]}>
+          <GradientButton
+            title="JUGAR"
             onPress={handlePlay}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.actionButtonText}>JUGAR</Text>
-          </TouchableOpacity>
+            variant="success"
+            icon="play"
+            iconSize="lg"
+            fullWidth
+            size="large"
+            style={styles.actionButton}
+          />
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.shopButton]}
+          <GradientButton
+            title="TIENDA"
             onPress={handleShop}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.actionButtonText}>TIENDA</Text>
-          </TouchableOpacity>
+            variant="secondary"
+            icon="cart"
+            iconSize="lg"
+            fullWidth
+            size="large"
+            style={styles.actionButton}
+          />
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.settingsButton]}
+          <GradientButton
+            title="CONFIGURACIÓN"
             onPress={handleSettings}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.actionButtonText}>CONFIGURACIÓN</Text>
-          </TouchableOpacity>
-        </View>
+            variant="primary"
+            icon="settings"
+            iconSize="lg"
+            fullWidth
+            size="large"
+            style={styles.actionButton}
+          />
+        </Animated.View>
 
         {/* Información Adicional */}
-        <View style={styles.infoContainer}>
+        <Animated.View style={[buttonsAnimatedStyle, styles.infoContainer]}>
+          <Icon name="information-circle" size="md" color={Colors.primary} style={styles.infoIcon} />
           <Text style={styles.infoText}>
             ¡Completa misiones para ganar experiencia y monedas!
           </Text>
           <Text style={styles.infoSubtext}>
             Nivel actual: {level}
           </Text>
-        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -159,131 +232,105 @@ const GameHomeScreen = (): React.JSX.Element => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   scrollContent: {
-    padding: 20,
+    padding: Spacing.md,
   },
   header: {
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+  },
+  headerTop: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+  },
+  avatarContainer: {
+    marginRight: Spacing.md,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#4A90E2',
+    ...Typography.heading.large,
+    color: Colors.primary,
+    fontWeight: '800',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 5,
+    ...Typography.body.regular,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
-  statsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  statsSection: {
+    marginBottom: Spacing.lg,
   },
-  statRow: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
   },
-  statItem: {
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 5,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4A90E2',
-  },
-  livesContainer: {
-    flexDirection: 'row',
-  },
-  heart: {
-    width: 20,
-    height: 20,
-    backgroundColor: '#E91E63',
-    borderRadius: 10,
-    marginHorizontal: 2,
+  statCard: {
+    flex: 1,
   },
   experienceContainer: {
-    marginTop: 10,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  experienceText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+  experienceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
   },
-  experienceBar: {
-    height: 10,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  experienceFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
+  experienceLabel: {
+    ...Typography.label.large,
+    color: Colors.text,
+    fontWeight: '600',
   },
   experienceValue: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-    textAlign: 'right',
+    ...Typography.label.regular,
+    color: Colors.textSecondary,
   },
-  actionsContainer: {
-    gap: 15,
+  actionsSection: {
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   actionButton: {
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  playButton: {
-    backgroundColor: '#4CAF50',
-  },
-  shopButton: {
-    backgroundColor: '#FF9800',
-  },
-  settingsButton: {
-    backgroundColor: '#4A90E2',
-  },
-  actionButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+    width: '100%',
   },
   infoContainer: {
-    marginTop: 30,
-    padding: 15,
-    backgroundColor: '#E3F2FD',
-    borderRadius: 10,
+    backgroundColor: Colors.infoLight,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.info,
+  },
+  infoIcon: {
+    marginBottom: Spacing.sm,
   },
   infoText: {
-    fontSize: 14,
-    color: '#1976D2',
+    ...Typography.body.regular,
+    color: Colors.infoDark,
     textAlign: 'center',
+    marginBottom: Spacing.xs,
   },
   infoSubtext: {
-    fontSize: 12,
-    color: '#1976D2',
+    ...Typography.body.small,
+    color: Colors.info,
     textAlign: 'center',
-    marginTop: 5,
   },
 });
 

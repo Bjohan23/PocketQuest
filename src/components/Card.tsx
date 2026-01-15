@@ -1,6 +1,6 @@
 /**
  * Componente de Card Reutilizable
- * Contenedor con estilo de tarjeta
+ * Contenedor con estilo de tarjeta y variantes
  */
 
 import React from 'react';
@@ -11,6 +11,10 @@ import {
   ViewStyle,
   TouchableOpacity,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { Colors, BorderRadius, Spacing, Shadows, Typography } from '../theme';
+
+export type CardVariant = 'elevated' | 'outlined' | 'gradient';
 
 export interface CardProps {
   children: React.ReactNode;
@@ -19,18 +23,22 @@ export interface CardProps {
   onPress?: () => void;
   padding?: number;
   shadow?: boolean;
+  variant?: CardVariant;
+  gradientColors?: [string, string];
 }
 
 /**
- * Componente de Card reutilizable
+ * Componente de Card reutilizable con variantes
  */
 const Card = ({
   children,
   title,
   style,
   onPress,
-  padding = 15,
+  padding = Spacing.md,
   shadow = true,
+  variant = 'elevated',
+  gradientColors,
 }: CardProps): React.JSX.Element => {
   const cardContent = (
     <>
@@ -39,12 +47,65 @@ const Card = ({
     </>
   );
 
-  const cardStyles = [
-    styles.card,
-    { padding },
-    !shadow && styles.cardNoShadow,
-    style,
-  ];
+  // Obtener estilos según la variante
+  const getCardStyles = () => {
+    const baseStyle = {
+      borderRadius: BorderRadius.lg,
+      marginBottom: Spacing.md,
+      padding,
+    };
+
+    switch (variant) {
+      case 'outlined':
+        return {
+          ...baseStyle,
+          backgroundColor: Colors.surface,
+          borderWidth: 1,
+          borderColor: Colors.border,
+        };
+      case 'gradient':
+        return {
+          ...baseStyle,
+          overflow: 'hidden' as const,
+        };
+      case 'elevated':
+      default:
+        return {
+          ...baseStyle,
+          backgroundColor: Colors.surface,
+          ...(shadow ? Shadows.md : {}),
+        };
+    }
+  };
+
+  const cardStyles = [getCardStyles(), style];
+
+  if (variant === 'gradient') {
+    const colors = gradientColors || Colors.gradientPrimary;
+    const content = (
+      <LinearGradient
+        colors={colors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={cardStyles}
+      >
+        {cardContent}
+      </LinearGradient>
+    );
+
+    if (onPress) {
+      return (
+        <TouchableOpacity
+          onPress={onPress}
+          activeOpacity={0.9}
+        >
+          {content}
+        </TouchableOpacity>
+      );
+    }
+
+    return content;
+  }
 
   if (onPress) {
     return (
@@ -62,25 +123,10 @@ const Card = ({
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardNoShadow: {
-    shadowOpacity: 0,
-    elevation: 0,
-  },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    ...Typography.heading.small,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
   },
 });
 

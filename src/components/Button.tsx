@@ -1,6 +1,6 @@
 /**
  * Componente de Botón Reutilizable
- * Botón personalizado con diferentes variantes y estilos
+ * Botón personalizado con diferentes variantes, estilos, iconos y animaciones
  */
 
 import React from 'react';
@@ -11,7 +11,18 @@ import {
   ViewStyle,
   TextStyle,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import { Colors, BorderRadius, Spacing } from '../theme';
+import Icon from './common/Icon';
+
+// Configuración de Reanimated
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning';
 
@@ -24,11 +35,78 @@ export interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: string;
+  iconSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   fullWidth?: boolean;
+  size?: 'small' | 'medium' | 'large';
 }
 
 /**
- * Componente de botón reutilizable
+ * Obtiene los estilos según la variante del botón
+ */
+const getVariantStyles = (variant: ButtonVariant) => {
+  switch (variant) {
+    case 'primary':
+      return {
+        backgroundColor: Colors.primary,
+        textColor: Colors.textWhite,
+      };
+    case 'secondary':
+      return {
+        backgroundColor: Colors.secondary,
+        textColor: Colors.textWhite,
+      };
+    case 'success':
+      return {
+        backgroundColor: Colors.success,
+        textColor: Colors.textWhite,
+      };
+    case 'danger':
+      return {
+        backgroundColor: Colors.danger,
+        textColor: Colors.textWhite,
+      };
+    case 'warning':
+      return {
+        backgroundColor: Colors.warning,
+        textColor: Colors.textWhite,
+      };
+    default:
+      return {
+        backgroundColor: Colors.primary,
+        textColor: Colors.textWhite,
+      };
+  }
+};
+
+/**
+ * Obtiene el padding según el tamaño
+ */
+const getSizeStyles = (size: 'small' | 'medium' | 'large') => {
+  switch (size) {
+    case 'small':
+      return {
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.md,
+        fontSize: 14,
+      };
+    case 'large':
+      return {
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.xl,
+        fontSize: 18,
+      };
+    case 'medium':
+    default:
+      return {
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        fontSize: 16,
+      };
+  }
+};
+
+/**
+ * Componente de botón reutilizable con iconos y animación
  */
 const Button = ({
   title,
@@ -39,70 +117,68 @@ const Button = ({
   style,
   textStyle,
   icon,
+  iconSize = 'md',
   fullWidth = false,
+  size = 'medium',
 }: ButtonProps): React.JSX.Element => {
+  const scale = useSharedValue(1);
+
   /**
-   * Obtiene los estilos según la variante del botón
+   * Maneja el inicio del press
    */
-  const getVariantStyles = () => {
-    switch (variant) {
-      case 'primary':
-        return {
-          backgroundColor: '#4A90E2',
-          textColor: '#FFFFFF',
-        };
-      case 'secondary':
-        return {
-          backgroundColor: '#78909C',
-          textColor: '#FFFFFF',
-        };
-      case 'success':
-        return {
-          backgroundColor: '#4CAF50',
-          textColor: '#FFFFFF',
-        };
-      case 'danger':
-        return {
-          backgroundColor: '#FF5252',
-          textColor: '#FFFFFF',
-        };
-      case 'warning':
-        return {
-          backgroundColor: '#FF9800',
-          textColor: '#FFFFFF',
-        };
-      default:
-        return {
-          backgroundColor: '#4A90E2',
-          textColor: '#FFFFFF',
-        };
-    }
+  const handlePressIn = () => {
+    if (disabled || loading) return;
+    scale.value = withSpring(0.95, { damping: 15, stiffness: 400 });
   };
 
-  const variantStyles = getVariantStyles();
+  /**
+   * Maneja el final del press
+   */
+  const handlePressOut = () => {
+    if (disabled || loading) return;
+    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+  };
+
+  const variantStyles = getVariantStyles(variant);
+  const sizeStyles = getSizeStyles(size);
+
+  // Estilo animado
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <TouchableOpacity
+    <AnimatedTouchableOpacity
       style={[
         styles.button,
         { backgroundColor: variantStyles.backgroundColor },
         fullWidth && styles.fullWidth,
         disabled && styles.buttonDisabled,
+        { paddingVertical: sizeStyles.paddingVertical, paddingHorizontal: sizeStyles.paddingHorizontal },
         style,
       ]}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled || loading}
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator color="#FFFFFF" />
+        <ActivityIndicator color={variantStyles.textColor} />
       ) : (
         <>
-          {icon && <Text style={styles.icon}>{icon}</Text>}
+          {icon && (
+            <Icon
+              name={icon}
+              size={iconSize}
+              color={variantStyles.textColor}
+              style={styles.icon}
+            />
+          )}
           <Text
             style={[
               styles.text,
-              { color: variantStyles.textColor },
+              { color: variantStyles.textColor, fontSize: sizeStyles.fontSize },
               textStyle,
             ]}
           >
@@ -110,36 +186,40 @@ const Button = ({
           </Text>
         </>
       )}
-    </TouchableOpacity>
+    </AnimatedTouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    padding: 16,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   buttonDisabled: {
-    backgroundColor: '#B0BEC5',
+    backgroundColor: Colors.borderLight,
     opacity: 0.6,
   },
   fullWidth: {
     width: '100%',
   },
   text: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    textAlign: 'center',
   },
   icon: {
-    fontSize: 18,
     marginRight: 8,
   },
 });

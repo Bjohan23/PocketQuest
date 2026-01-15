@@ -1,24 +1,28 @@
 /**
- * Pantalla de Configuración del Modo Juego
- * Preferencias del juego y acceso al modo comunicación
+ * Pantalla de Configuración del Modo Juego - Rediseño Moderno
+ * Preferencias del juego con iconos, acordeones y animaciones
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   TextInput,
   Alert,
-  Switch,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { APP_CONFIG } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
+import { Colors, Spacing, Typography, BorderRadius } from '../../theme';
+import { Icon, SettingRow, Accordion, GradientButton, Card } from '../../components';
 
 const GameSettingsScreen = (): React.JSX.Element => {
-
   // Estado del juego desde el store
   const { soundEnabled, language, updateSettings, enableCommunicationAccess } = useAppStore();
 
@@ -26,13 +30,33 @@ const GameSettingsScreen = (): React.JSX.Element => {
   const [accessCode, setAccessCode] = useState('');
   const [showAdvancedAccess, setShowAdvancedAccess] = useState(false);
 
+  // Valores para animaciones
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(20);
+
+  // Animación de entrada
+  useEffect(() => {
+    opacity.value = withSpring(1, { damping: 15, stiffness: 100 });
+    translateY.value = withSpring(0, { damping: 15, stiffness: 100 });
+  }, []);
+
+  // Estilo animado
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
   /**
    * Maneja el cambio de idioma
    */
   const handleLanguageChange = () => {
     const newLanguage = language === 'es' ? 'en' : 'es';
     updateSettings({ language: newLanguage });
-    Alert.alert('Idioma cambiado', `Idioma establecido a ${newLanguage === 'es' ? 'Español' : 'Inglés'}`);
+    Alert.alert(
+      'Idioma cambiado',
+      `Idioma establecido a ${newLanguage === 'es' ? 'Español' : 'Inglés'}`,
+      [{ text: 'OK', style: 'default' }]
+    );
   };
 
   /**
@@ -69,7 +93,7 @@ const GameSettingsScreen = (): React.JSX.Element => {
               setShowAdvancedAccess(false);
             },
           },
-        ],
+        ]
       );
     } else {
       Alert.alert('Código Inválido', 'El código ingresado no es correcto');
@@ -78,89 +102,96 @@ const GameSettingsScreen = (): React.JSX.Element => {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Sección de Preferencias de Sonido */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferencias de Sonido</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Animated.View style={animatedStyle}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Icon name="settings" size="xl" color={Colors.primary} />
+            <Text style={styles.headerTitle}>Configuración</Text>
+          </View>
 
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Sonido habilitado</Text>
-            <Switch
+          {/* Sección de Preferencias de Sonido */}
+          <Card style={styles.section} variant="elevated">
+            <SettingRow
+              icon="volume-high"
+              label="Sonido habilitado"
+              description="Activar o desactivar efectos de sonido"
               value={soundEnabled}
               onValueChange={handleSoundToggle}
-              trackColor={{ false: '#767577', true: '#4A90E2' }}
-              thumbColor="#FFFFFF"
+              iconColor={Colors.primary}
             />
-          </View>
-        </View>
+          </Card>
 
-        {/* Sección de Idioma */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Idioma</Text>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>
-              Idioma actual: {language === 'es' ? 'Español' : 'Inglés'}
-            </Text>
-            <TouchableOpacity
-              style={styles.languageButton}
+          {/* Sección de Idioma */}
+          <Card style={styles.section} variant="elevated">
+            <SettingRow
+              icon="globe"
+              label="Idioma"
+              description={`Idioma actual: ${language === 'es' ? 'Español' : 'Inglés'}`}
               onPress={handleLanguageChange}
-            >
-              <Text style={styles.languageButtonText}>Cambiar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+              iconColor={Colors.secondary}
+            />
+          </Card>
 
-        {/* Sección de Acceso Avanzado */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.advancedHeader}
-            onPress={() => setShowAdvancedAccess(!showAdvancedAccess)}
+          {/* Sección de Acceso Avanzado */}
+          <Accordion
+            title="Acceso Avanzado"
+            icon="lock-closed"
+            initiallyOpen={false}
+            iconColor={Colors.warning}
+            style={styles.section}
           >
-            <Text style={styles.sectionTitle}>Acceso Avanzado</Text>
-            <Text style={styles.advancedArrow}>{showAdvancedAccess ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
+            <Text style={styles.advancedDescription}>
+              Ingresa un código de acceso para habilitar funcionalidades adicionales del modo comunicación.
+            </Text>
 
-          {showAdvancedAccess && (
-            <View style={styles.advancedContent}>
-              <Text style={styles.advancedDescription}>
-                Ingresa un código de acceso para habilitar funcionalidades adicionales
-              </Text>
-
+            <View style={styles.inputContainer}>
+              <Icon name="key" size="md" color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.accessInput}
                 placeholder="Código de acceso"
+                placeholderTextColor={Colors.textLight}
                 value={accessCode}
                 onChangeText={setAccessCode}
                 secureTextEntry
                 autoCapitalize="none"
                 autoComplete="off"
               />
-
-              <TouchableOpacity
-                style={styles.continueButton}
-                onPress={handleAdvancedAccess}
-              >
-                <Text style={styles.continueButtonText}>Continuar</Text>
-              </TouchableOpacity>
             </View>
-          )}
-        </View>
 
-        {/* Información de la Aplicación */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información</Text>
+            <GradientButton
+              title="Continuar"
+              onPress={handleAdvancedAccess}
+              variant="primary"
+              icon="arrow-forward"
+              fullWidth
+              style={styles.continueButton}
+            />
+          </Accordion>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Versión:</Text>
-            <Text style={styles.infoValue}>1.0.0</Text>
+          {/* Sección de Información */}
+          <Card style={styles.section} variant="elevated">
+            <SettingRow
+              icon="information-circle"
+              label="Versión"
+              description="1.0.0"
+              iconColor={Colors.info}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="game-controller"
+              label="Modo"
+              description="Juego"
+              iconColor={Colors.success}
+            />
+          </Card>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Pocket Quest v1.0.0</Text>
+            <Text style={styles.footerSubtext}>Modo Juego Activo</Text>
           </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Modo:</Text>
-            <Text style={styles.infoValue}>Juego</Text>
-          </View>
-        </View>
+        </Animated.View>
       </ScrollView>
     </View>
   );
@@ -169,100 +200,72 @@ const GameSettingsScreen = (): React.JSX.Element => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   scrollContent: {
-    padding: 20,
+    padding: Spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+  },
+  headerTitle: {
+    ...Typography.heading.large,
+    color: Colors.text,
+    fontWeight: '700',
+    marginLeft: Spacing.md,
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#333',
-  },
-  languageButton: {
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  languageButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  advancedHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  advancedArrow: {
-    fontSize: 16,
-    color: '#666',
-  },
-  advancedContent: {
-    marginTop: 15,
+    marginBottom: Spacing.md,
   },
   advancedDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 15,
-    lineHeight: 20,
+    ...Typography.body.regular,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
+    lineHeight: 22,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceVariant,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  inputIcon: {
+    marginLeft: Spacing.md,
   },
   accessInput: {
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 15,
+    flex: 1,
+    padding: Spacing.md,
+    marginLeft: Spacing.sm,
+    color: Colors.text,
+    fontSize: Typography.fontSize.base,
   },
   continueButton: {
-    backgroundColor: '#4A90E2',
-    padding: 15,
-    borderRadius: 10,
+    marginTop: Spacing.xs,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginVertical: Spacing.sm,
+  },
+  footer: {
     alignItems: 'center',
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
   },
-  continueButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+  footerText: {
+    ...Typography.label.regular,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
+  footerSubtext: {
+    ...Typography.body.small,
+    color: Colors.textLight,
   },
 });
 

@@ -16,6 +16,7 @@ export type RootStackParamList = {
 export type GameStackParamList = {
   GameHome: undefined;
   GameSettings: undefined;
+  WhackAMoleGame: undefined;
 };
 
 export type CommunicationStackParamList = {

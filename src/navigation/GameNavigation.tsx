@@ -10,6 +10,7 @@ import { GameStackParamList } from '../types';
 // Importar pantallas del juego
 import GameHomeScreen from '../screens/game/GameHomeScreen';
 import GameSettingsScreen from '../screens/game/GameSettingsScreen';
+import WhackAMoleGameScreen from '../screens/game/WhackAMoleGameScreen';
 
 const Stack = createNativeStackNavigator<GameStackParamList>();
 
@@ -42,6 +43,15 @@ const GameNavigation = (): React.JSX.Element => {
         options={{
           title: 'Configuración',
           headerBackTitle: 'Atrás',
+        }}
+      />
+      <Stack.Screen
+        name="WhackAMoleGame"
+        component={WhackAMoleGameScreen}
+        options={{
+          title: 'Whack-a-Mole',
+          headerShown: false,
+          orientation: 'landscape',
         }}
       />
     </Stack.Navigator>
