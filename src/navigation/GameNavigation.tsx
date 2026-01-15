@@ -10,7 +10,9 @@ import { GameStackParamList } from '../types';
 // Importar pantallas del juego
 import GameHomeScreen from '../screens/game/GameHomeScreen';
 import GameSettingsScreen from '../screens/game/GameSettingsScreen';
+import GameShopScreen from '../screens/game/GameShopScreen';
 import WhackAMoleGameScreen from '../screens/game/WhackAMoleGameScreen';
+import SnakeGameScreen from '../screens/game/SnakeGameScreen';
 
 const Stack = createNativeStackNavigator<GameStackParamList>();
 
@@ -33,7 +35,7 @@ const GameNavigation = (): React.JSX.Element => {
         name="GameHome"
         component={GameHomeScreen}
         options={{
-          title: 'Pocket Quest',
+          title: 'Pocket Quest 2',
           headerShown: true,
         }}
       />
@@ -46,12 +48,27 @@ const GameNavigation = (): React.JSX.Element => {
         }}
       />
       <Stack.Screen
+        name="GameShop"
+        component={GameShopScreen}
+        options={{
+          title: 'Tienda',
+          headerBackTitle: 'Atrás',
+        }}
+      />
+      <Stack.Screen
         name="WhackAMoleGame"
         component={WhackAMoleGameScreen}
         options={{
           title: 'Whack-a-Mole',
           headerShown: false,
-          orientation: 'landscape',
+        }}
+      />
+      <Stack.Screen
+        name="SnakeGame"
+        component={SnakeGameScreen}
+        options={{
+          title: 'Snake',
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

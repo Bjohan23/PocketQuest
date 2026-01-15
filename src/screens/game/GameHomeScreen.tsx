@@ -3,7 +3,7 @@
  * UI de juego casual con estadísticas, animaciones y acciones
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Platform,
+  Modal,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -27,6 +28,7 @@ import { GameStackParamList } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { Colors, Spacing, Typography, BorderRadius } from '../../theme';
 import { Icon, StatCard, GradientButton, ProgressBar } from '../../components';
+import GameSelectorScreen from './GameSelectorScreen';
 
 type NavigationProps = NativeStackNavigationProp<GameStackParamList, 'GameHome'>;
 
@@ -42,6 +44,9 @@ const GameHomeScreen = (): React.JSX.Element => {
   const statsScale = useSharedValue(0.8);
   const statsOpacity = useSharedValue(0);
   const buttonTranslateY = useSharedValue(50);
+
+  // Estado para el modal de selección de juegos
+  const [showGameSelector, setShowGameSelector] = useState(false);
 
   // Animaciones de entrada al montar
   useEffect(() => {
@@ -76,25 +81,15 @@ const GameHomeScreen = (): React.JSX.Element => {
    * Navega a la pantalla de juego
    */
   const handlePlay = () => {
-    addNotification({
-      title: '¡A Jugar!',
-      message: 'Iniciando partida...',
-      type: 'game',
-    });
-
-    // Navegar al juego Whack-a-Mole
-    navigation.navigate('WhackAMoleGame' as any);
+    // Mostrar selector de juegos
+    setShowGameSelector(true);
   };
 
   /**
    * Navega a la tienda del juego
    */
   const handleShop = () => {
-    addNotification({
-      title: 'Tienda',
-      message: 'Próximamente disponible',
-      type: 'content',
-    });
+    navigation.navigate('GameShop');
   };
 
   /**
@@ -128,7 +123,7 @@ const GameHomeScreen = (): React.JSX.Element => {
               <Icon name="person-circle" size="xl" color={Colors.primary} />
             </View>
             <View style={styles.headerTextContainer}>
-              <Text style={styles.title}>Pocket Quest</Text>
+              <Text style={styles.title}>Pocket Quest 3</Text>
               <Text style={styles.subtitle}>Aventura Casual</Text>
             </View>
           </View>
@@ -184,7 +179,7 @@ const GameHomeScreen = (): React.JSX.Element => {
             title="JUGAR"
             onPress={handlePlay}
             variant="success"
-            icon="play"
+            icon="game-controller"
             iconSize="lg"
             fullWidth
             size="large"
@@ -225,6 +220,16 @@ const GameHomeScreen = (): React.JSX.Element => {
           </Text>
         </Animated.View>
       </ScrollView>
+
+      {/* Modal de selección de juegos */}
+      <Modal
+        visible={showGameSelector}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowGameSelector(false)}
+      >
+        <GameSelectorScreen closeModal={() => setShowGameSelector(false)} />
+      </Modal>
     </SafeAreaView>
   );
 };

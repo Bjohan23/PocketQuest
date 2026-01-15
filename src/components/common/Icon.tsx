@@ -18,7 +18,7 @@ export interface IconProps {
   /**
    * Tamanos predefinidos del icono
    */
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | number;
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | number;
 
   /**
    * Color del icono (puede ser de Colors o un color custom)

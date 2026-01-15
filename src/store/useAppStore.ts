@@ -24,6 +24,7 @@ interface GameStore extends GameState {
   updateLevel: (level: number) => void;
   updateLives: (lives: number) => void;
   updateCoins: (coins: number) => void;
+  addCoins: (amount: number) => void;
   addExperience: (amount: number) => void;
   updateSettings: (settings: Partial<GameSettings>) => void;
   resetGame: () => void;
@@ -172,6 +173,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   updateLives: (lives: number) => set({ lives }),
 
   updateCoins: (coins: number) => set({ coins }),
+
+  addCoins: (amount: number) =>
+    set((state) => ({
+      coins: state.coins + amount,
+    })),
 
   addExperience: (amount: number) =>
     set((state) => {

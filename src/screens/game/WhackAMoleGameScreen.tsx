@@ -350,6 +350,12 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
       return Colors.primary;
     };
 
+    // Estilo animado para la visibilidad del topo
+    const moleAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: mole.isVisible ? 1 : 0,
+      transform: [{ scale: mole.isVisible ? 1 : 0 }],
+    }));
+
     return (
       <TouchableOpacity
         key={mole.id}
@@ -361,10 +367,7 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
         activeOpacity={0.8}
         disabled={!mole.isVisible}
       >
-        <Animated.View style={[
-          styles.mole,
-          mole.isVisible && styles.moleVisible
-        ]}>
+        <Animated.View style={[styles.mole, moleAnimatedStyle]}>
           <Icon
             name={getMoleIcon()}
             size="xl"
@@ -387,18 +390,22 @@ const WhackAMoleGameScreen = (): React.JSX.Element => {
           ¡Golpea los topos para ganar puntos!
         </Text>
         <View style={styles.instructions}>
-          <Text style={styles.instructionText}>
-            <Text style={styles.instructionIcon}>🐹</Text> Topo normal: +10 puntos
-          </Text>
-          <Text style={styles.instructionText}>
-            <Text style={styles.instructionIcon}>🏆</Text> Topo dorado: +50 puntos
-          </Text>
-          <Text style={styles.instructionText}>
-            <Text style={styles.instructionIcon}>💣</Text> Bomba: -20 puntos
-          </Text>
-          <Text style={styles.instructionText}>
-            <Text style={styles.instructionIcon}>🔥</Text> Combo: multiplicador
-          </Text>
+          <View style={styles.instructionItem}>
+            <Icon name="pawprint" size="md" color={Colors.primary} />
+            <Text style={styles.instructionText}>Topo normal: +10 puntos</Text>
+          </View>
+          <View style={styles.instructionItem}>
+            <Icon name="trophy" size="md" color={Colors.warning} />
+            <Text style={styles.instructionText}>Topo dorado: +50 puntos</Text>
+          </View>
+          <View style={styles.instructionItem}>
+            <Icon name="flame" size="md" color={Colors.danger} />
+            <Text style={styles.instructionText}>Bomba: -20 puntos</Text>
+          </View>
+          <View style={styles.instructionItem}>
+            <Icon name="trending-up" size="md" color={Colors.success} />
+            <Text style={styles.instructionText}>Combo: multiplicador</Text>
+          </View>
         </View>
         <GradientButton
           title="JUGAR"
@@ -632,12 +639,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   mole: {
-    opacity: 0,
-    transform: [{ scale: 0 }],
-  },
-  moleVisible: {
-    opacity: 1,
-    transform: [{ scale: 1 }],
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -686,13 +689,16 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     gap: Spacing.sm,
   },
+  instructionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
   instructionText: {
     ...Typography.body.regular,
     color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  instructionIcon: {
-    fontSize: 20,
+    flex: 1,
   },
   overlayButton: {
     marginBottom: Spacing.sm,

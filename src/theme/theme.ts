@@ -10,60 +10,62 @@ import { TextStyle, ViewStyle } from 'react-native';
 // ============================
 
 export const Colors = {
-  // Colores primarios
-  primary: '#7C4DFF', // Violeta moderno
-  primaryDark: '#651FFF',
-  primaryLight: '#B388FF',
+  // Colores primarios - Azul vibrante moderno
+  primary: '#5E72E4', // Azul vibrante
+  primaryDark: '#485ac9',
+  primaryLight: '#8A94FF',
 
-  // Colores secundarios
-  secondary: '#FF9800', // Naranja vibrante
-  secondaryDark: '#F57C00',
-  secondaryLight: '#FFB74D',
+  // Colores secundarios - Violeta moderno
+  secondary: '#7C4DFF', // Violeta moderno
+  secondaryDark: '#651FFF',
+  secondaryLight: '#B388FF',
 
   // Colores de estado
-  success: '#4CAF50',
-  successDark: '#388E3C',
-  successLight: '#81C784',
+  success: '#2DCE89', // Verde esmeralda moderno
+  successDark: '#24b576',
+  successLight: '#5CE2A8',
 
-  warning: '#FF9800',
-  warningDark: '#F57C00',
-  warningLight: '#FFB74D',
+  warning: '#FB6340', // Naranja coral moderno
+  warningDark: '#e04a28',
+  warningLight: '#fc8970',
 
-  danger: '#FF5252',
-  dangerDark: '#D32F2F',
-  dangerLight: '#FF867C',
+  danger: '#F5365C', // Rojo moderno
+  dangerDark: '#d32549',
+  dangerLight: '#f76b8a',
 
-  info: '#2196F3',
-  infoDark: '#1976D2',
-  infoLight: '#64B5F6',
+  info: '#11CDEF', // Cyan moderno
+  infoDark: '#0da8c9',
+  infoLight: '#4DDBF5',
 
   // Colores de fondo
-  background: '#F8F9FA',
-  backgroundDark: '#F0F2F5',
+  background: '#F4F5F7', // Gris muy suave
+  backgroundDark: '#E8EAED',
 
   // Colores de superficie
   surface: '#FFFFFF',
-  surfaceVariant: '#F5F5F5',
+  surfaceVariant: '#F7F9FC',
 
   // Colores de texto
-  text: '#212121',
-  textSecondary: '#757575',
-  textLight: '#BDBDBD',
+  text: '#32325D', // Azul grisáceo oscuro
+  textSecondary: '#8898AA',
+  textLight: '#CED4DA',
   textWhite: '#FFFFFF',
 
   // Colores de borde
-  border: '#E0E0E0',
-  borderLight: '#EEEEEE',
+  border: '#E9ECEF',
+  borderLight: '#F4F5F7',
 
-  // Gradientes
-  gradientPrimary: ['#7C4DFF', '#651FFF'],
-  gradientSecondary: ['#FF9800', '#F57C00'],
-  gradientSuccess: ['#4CAF50', '#388E3C'],
-  gradientGame: ['#6C63FF', '#7C4DFF'],
+  // Gradientes mejorados
+  gradientPrimary: ['#5E72E4', '#825EE4'], // Azul a violeta
+  gradientSecondary: ['#7C4DFF', '#B388FF'], // Violeta claro
+  gradientSuccess: ['#2DCE89', '#2DCE89'], // Verde esmeralda
+  gradientGame: ['#5E72E4', '#7C4DFF'], // Azul a violeta para juegos
+  gradientWarm: ['#FB6340', '#F5365C'], // Naranja a rojo
+  gradientCool: ['#11CDEF', '#5E72E4'], // Cyan a azul
 
   // Overlay
-  overlay: 'rgba(0, 0, 0, 0.5)',
-  overlayLight: 'rgba(255, 255, 255, 0.9)',
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  overlayLight: 'rgba(255, 255, 255, 0.95)',
 } as const;
 
 // ============================
@@ -115,6 +117,14 @@ export const Typography = {
       color: Colors.text,
       lineHeight: 24,
     },
+  },
+
+  // Tamaño extra grande para countdowns y números grandes
+  '5xl': {
+    fontSize: 48,
+    fontWeight: '800' as const,
+    color: Colors.primary,
+    lineHeight: 56,
   },
 
   body: {
@@ -226,6 +236,9 @@ export const IconSizes = {
   lg: 24,
   xl: 32,
   '2xl': 48,
+  '3xl': 64,
+  '4xl': 80,
+  '5xl': 96,
 } as const;
 
 // ============================
