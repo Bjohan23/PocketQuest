@@ -1,6 +1,6 @@
 /**
  * Pantalla de Conversación Individual
- * Muestra los mensajes de una conversación y permite enviar nuevos
+ * Muestra los mensajes cifrados E2EE de una conversación
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -14,20 +14,26 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CommunicationStackParamList, Message } from '../../types';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { CommunicationStackParamList } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
+import { messageService } from '../../services';
 
-type NavigationProps = NativeStackNavigationProp<CommunicationStackParamList, 'Conversation'>;
+type NavigationProps = NativeStackNavigationProp<
+  CommunicationStackParamList,
+  'Conversation'
+>;
 type RouteProps = RouteProp<CommunicationStackParamList, 'Conversation'>;
 
 interface MessageBubbleProps {
   content: string;
   isFromUser: boolean;
-  timestamp: Date;
-  isTemporary?: boolean;
+  timestamp: string;
+  isEncrypted?: boolean;
 }
 
 /**
@@ -37,10 +43,18 @@ const MessageBubble = ({
   content,
   isFromUser,
   timestamp,
-  isTemporary,
+  isEncrypted,
 }: MessageBubbleProps): React.JSX.Element => {
-  const formatTime = (date: Date): string => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return '';
+    }
   };
 
   return (
@@ -50,6 +64,13 @@ const MessageBubble = ({
         isFromUser ? styles.userMessage : styles.otherMessage,
       ]}
     >
+      {isEncrypted && (
+        <View style={styles.encryptedBadge}>
+          <Icon name="lock" size={12} color="#10B981" />
+          <Text style={styles.encryptedText}>E2EE</Text>
+        </View>
+      )}
+
       <Text
         style={[
           styles.messageText,
@@ -59,25 +80,14 @@ const MessageBubble = ({
         {content}
       </Text>
 
-      <View
+      <Text
         style={[
-          styles.messageFooter,
-          isFromUser ? styles.userMessageFooter : styles.otherMessageFooter,
+          styles.messageTime,
+          isFromUser ? styles.userMessageTime : styles.otherMessageTime,
         ]}
       >
-        <Text
-          style={[
-            styles.messageTime,
-            isFromUser ? styles.userMessageTime : styles.otherMessageTime,
-          ]}
-        >
-          {formatTime(timestamp)}
-        </Text>
-
-        {isTemporary && (
-          <Text style={styles.temporaryIndicator}>⏱ {isTemporary}</Text>
-        )}
-      </View>
+        {formatTime(timestamp)}
+      </Text>
     </View>
   );
 };
@@ -88,101 +98,131 @@ const MessageBubble = ({
 const ConversationScreen = (): React.JSX.Element => {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
-  const { conversationId } = route.params;
+  const { chatId } = route.params;
 
-  // Estado local para el input de mensaje
+  // Estado local
   const [messageText, setMessageText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Obtener datos de la conversación desde el store
-  const { conversations, addMessage, setActiveConversation } = useAppStore();
+  // Obtener datos del store
+  const { chats, messages, user, loadMessages } = useAppStore();
 
-  // Encontrar la conversación actual
-  const activeConversation = conversations.find((c) => c.id === conversationId);
+  // Encontrar el chat actual
+  const currentChat = chats.find(c => c.id === chatId);
+  const chatMessages = messages[chatId] || [];
 
   useEffect(() => {
-    // Establecer la conversación como activa al cargar la pantalla
-    setActiveConversation(conversationId);
-  }, [conversationId, setActiveConversation]);
+    loadChatMessages();
+  }, [chatId]);
+
+  const loadChatMessages = async () => {
+    try {
+      setLoading(true);
+      await loadMessages(chatId);
+    } catch (error) {
+      console.error('Error cargando mensajes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /**
-   * Envía un nuevo mensaje
+   * Envía un nuevo mensaje cifrado
    */
-  const handleSendMessage = () => {
-    if (!messageText.trim()) {
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !currentChat || !user) {
       return;
     }
 
-    // Agregar el mensaje al store
-    addMessage(conversationId, messageText, true);
+    try {
+      setSending(true);
 
-    // Limpiar el input
-    setMessageText('');
+      // Obtener clave pública del destinatario
+      const recipientPublicKey = currentChat.participant?.publicKey;
 
-    // Simular respuesta automática después de 1 segundo
-    setTimeout(() => {
-      const responses = [
-        '¡Mensaje recibido!',
-        'Gracias por tu mensaje',
-        'Entendido, te responderé pronto',
-        '¡Interesante!',
-        '¡Claro que sí!',
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      addMessage(conversationId, randomResponse, false);
-    }, 1000);
+      if (!recipientPublicKey) {
+        console.error('No se encontró la clave pública del destinatario');
+        return;
+      }
+
+      // Enviar mensaje cifrado
+      await messageService.sendMessage({
+        chatId,
+        message: messageText,
+        recipientPublicKey,
+      });
+
+      console.log('✅ Mensaje cifrado enviado');
+
+      // Limpiar input
+      setMessageText('');
+
+      // Recargar mensajes
+      await loadChatMessages();
+
+      // Scroll al final
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      console.error('❌ Error enviando mensaje:', error);
+    } finally {
+      setSending(false);
+    }
   };
 
   /**
    * Renderiza cada mensaje
    */
-  const renderMessage = ({ item }: { item: Message }) => {
+  const renderMessage = ({ item }: { item: any }) => {
+    const isFromUser = item.senderId === user?.id;
+
     return (
       <MessageBubble
-        content={item.content}
-        isFromUser={item.isFromUser}
-        timestamp={item.timestamp}
-        isTemporary={item.isTemporary}
+        content={item.decryptedText || '[Cifrado]'}
+        isFromUser={isFromUser}
+        timestamp={item.createdAt}
+        isEncrypted={true}
       />
     );
   };
 
   /**
-   * Header personalizado con botón de configuración
+   * Header personalizado con título del chat
    */
-  const ReactHeaderRight = () => {
-    return (
-      <TouchableOpacity
-        onPress={() => (navigation as any).navigate('ConversationSettings', { conversationId })}
-        style={styles.headerButton}
-      >
-        <Text style={styles.headerButtonText}>⚙️</Text>
-      </TouchableOpacity>
-    );
-  };
-
-  // Establecer header options
   React.useLayoutEffect(() => {
     navigation.setOptions({
-      title: activeConversation?.name || 'Conversación',
-      headerRight: () => <ReactHeaderRight />,
+      title: currentChat?.participant?.name || 'Chat Seguro',
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() =>
+            (navigation as any).navigate('ConversationSettings', { chatId })
+          }
+          style={styles.headerButton}
+        >
+          <Icon name="cog" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      ),
     });
-  }, [navigation, activeConversation]);
+  }, [navigation, currentChat]);
 
   // Scroll al final cuando hay nuevos mensajes
   useEffect(() => {
-    if (activeConversation && activeConversation.messages.length > 0) {
+    if (chatMessages && chatMessages.length > 0) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [activeConversation?.messages.length]);
+  }, [chatMessages?.length]);
 
-  if (!activeConversation) {
+  if (!currentChat) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Conversación no encontrada</Text>
+          <Icon name="alert-circle" size={64} color="#EF4444" />
+          <Text style={styles.errorText}>Chat no encontrado</Text>
         </View>
       </SafeAreaView>
     );
@@ -196,46 +236,63 @@ const ConversationScreen = (): React.JSX.Element => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Lista de Mensajes */}
-        <FlatList
-          ref={flatListRef}
-          data={activeConversation.messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.messagesList}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No hay mensajes aún</Text>
-              <Text style={styles.emptySubtext}>¡Inicia la conversación!</Text>
-            </View>
-          }
-        />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#8B5CF6" />
+            <Text style={styles.loadingText}>Descifrando mensajes...</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={chatMessages}
+            renderItem={renderMessage}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.messagesList}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Icon name="message-lock" size={64} color="#475569" />
+                <Text style={styles.emptyText}>No hay mensajes aún</Text>
+                <Text style={styles.emptySubtext}>
+                  Todos los mensajes están cifrados E2EE
+                </Text>
+              </View>
+            }
+          />
+        )}
 
         {/* Input de Mensaje */}
         <View style={styles.inputContainer}>
+          <Icon
+            name="lock"
+            size={18}
+            color="#10B981"
+            style={styles.lockInputIcon}
+          />
           <TextInput
             style={styles.input}
-            placeholder="Escribe un mensaje..."
+            placeholder="Mensaje cifrado..."
+            placeholderTextColor="#64748B"
             value={messageText}
             onChangeText={setMessageText}
             multiline
             maxLength={500}
+            editable={!sending}
           />
 
           <TouchableOpacity
-            style={[styles.sendButton, !messageText.trim() && styles.sendButtonDisabled]}
+            style={[
+              styles.sendButton,
+              (!messageText.trim() || sending) && styles.sendButtonDisabled,
+            ]}
             onPress={handleSendMessage}
-            disabled={!messageText.trim()}
-            activeOpacity={0.7}
+            disabled={!messageText.trim() || sending}
+            activeOpacity={0.8}
           >
-            <Text style={styles.sendButtonText}>Enviar</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.attachButton}
-            onPress={() => console.log('Adjuntar archivo (solo UI)')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.attachButtonText}>📎</Text>
+            {sending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Icon name="send" size={20} color="#FFFFFF" />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -246,35 +303,56 @@ const ConversationScreen = (): React.JSX.Element => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#0F172A',
   },
   keyboardContainer: {
     flex: 1,
   },
   messagesList: {
-    padding: 15,
-    paddingBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#64748B',
   },
   messageBubble: {
-    maxWidth: '80%',
+    maxWidth: '75%',
     padding: 12,
-    borderRadius: 18,
+    borderRadius: 16,
     marginBottom: 10,
+  },
+  encryptedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  encryptedText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#10B981',
+    marginLeft: 4,
   },
   userMessage: {
     alignSelf: 'flex-end',
-    backgroundColor: '#2E7D32',
+    backgroundColor: '#8B5CF6',
     borderBottomRightRadius: 4,
   },
   otherMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E293B',
     borderBottomLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   messageText: {
     fontSize: 15,
@@ -284,32 +362,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   otherMessageText: {
-    color: '#333',
-  },
-  messageFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  userMessageFooter: {
-    justifyContent: 'flex-end',
-  },
-  otherMessageFooter: {
-    justifyContent: 'flex-end',
+    color: '#FFFFFF',
   },
   messageTime: {
     fontSize: 11,
+    marginTop: 4,
   },
   userMessageTime: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   otherMessageTime: {
-    color: '#999',
-  },
-  temporaryIndicator: {
-    fontSize: 10,
-    marginLeft: 5,
+    color: '#64748B',
   },
   emptyContainer: {
     flex: 1,
@@ -319,12 +382,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#999',
+    color: '#64748B',
+    marginTop: 16,
     marginBottom: 5,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#CCC',
+    color: '#475569',
   },
   errorContainer: {
     flex: 1,
@@ -333,54 +397,46 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    color: '#666',
+    color: '#EF4444',
+    marginTop: 16,
   },
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: 10,
-    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#1E293B',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    gap: 8,
+    borderTopColor: '#334155',
+  },
+  lockInputIcon: {
+    marginRight: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#0F172A',
     borderRadius: 20,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
     maxHeight: 100,
+    color: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   sendButton: {
-    backgroundColor: '#2E7D32',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: '#8B5CF6',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   sendButtonDisabled: {
-    backgroundColor: '#B0BEC5',
-  },
-  sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  attachButton: {
-    padding: 10,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 20,
-  },
-  attachButtonText: {
-    fontSize: 18,
+    backgroundColor: '#475569',
   },
   headerButton: {
-    marginRight: 15,
-  },
-  headerButtonText: {
-    fontSize: 20,
+    marginRight: 12,
   },
 });
 

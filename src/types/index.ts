@@ -23,8 +23,8 @@ export type GameStackParamList = {
 
 export type CommunicationStackParamList = {
   ConversationList: undefined;
-  Conversation: { conversationId: string };
-  ConversationSettings: { conversationId: string };
+  Conversation: { chatId: string };
+  ConversationSettings: { chatId: string };
 };
 
 // ============================

@@ -19,10 +19,19 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import reactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { GameStackParamList } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../../theme';
+import {
+  Colors,
+  Spacing,
+  Typography,
+  BorderRadius,
+  Shadows,
+} from '../../theme';
 import { Icon, GradientButton } from '../../components';
 
-type NavigationProps = NativeStackNavigationProp<GameStackParamList, 'SnakeGame'>;
+type NavigationProps = NativeStackNavigationProp<
+  GameStackParamList,
+  'SnakeGame'
+>;
 
 // Tipos de dirección
 type Direction = 'up' | 'down' | 'left' | 'right';
@@ -40,7 +49,9 @@ interface Food {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GRID_SIZE = 20;
-const CELL_SIZE = Math.floor((Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) - Spacing.xl * 2) / GRID_SIZE);
+const CELL_SIZE = Math.floor(
+  (Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) - Spacing.xl * 2) / GRID_SIZE,
+);
 const GAME_DURATION = 120; // segundos
 const INITIAL_SPEED = 150; // ms entre movimientos
 const MIN_SPEED = 80; // velocidad máxima
@@ -62,7 +73,10 @@ const SnakeGameScreen = (): React.JSX.Element => {
   const [highScore, setHighScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [snake, setSnake] = useState<Position[]>([{ x: 10, y: 10 }]);
-  const [food, setFood] = useState<Food>({ position: { x: 15, y: 10 }, type: 'normal' });
+  const [food, setFood] = useState<Food>({
+    position: { x: 15, y: 10 },
+    type: 'normal',
+  });
   const [direction, setDirection] = useState<Direction>('right');
   const [nextDirection, setNextDirection] = useState<Direction>('right');
   const [speed, setSpeed] = useState(INITIAL_SPEED);
@@ -110,7 +124,7 @@ const SnakeGameScreen = (): React.JSX.Element => {
     setCountdown(3);
 
     const countdownInterval = setInterval(() => {
-      setCountdown((prev) => {
+      setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(countdownInterval);
           setGameState('playing');
@@ -136,7 +150,7 @@ const SnakeGameScreen = (): React.JSX.Element => {
   const moveSnake = useCallback(() => {
     if (gameState !== 'playing') return;
 
-    setSnake((prevSnake) => {
+    setSnake(prevSnake => {
       const head = prevSnake[0];
       let newHead: Position;
 
@@ -162,13 +176,17 @@ const SnakeGameScreen = (): React.JSX.Element => {
         newHead.y < 0 ||
         newHead.y >= GRID_SIZE
       ) {
-        runOnJS(endGame)();
+        endGame();
         return prevSnake;
       }
 
       // Verificar colisión consigo misma
-      if (prevSnake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
-        runOnJS(endGame)();
+      if (
+        prevSnake.some(
+          segment => segment.x === newHead.x && segment.y === newHead.y,
+        )
+      ) {
+        endGame();
         return prevSnake;
       }
 
@@ -216,7 +234,15 @@ const SnakeGameScreen = (): React.JSX.Element => {
     });
 
     setDirection(nextDirection);
-  }, [gameState, direction, nextDirection, food, speed, scaleValue, generateFoodPosition]);
+  }, [
+    gameState,
+    direction,
+    nextDirection,
+    food,
+    speed,
+    scaleValue,
+    generateFoodPosition,
+  ]);
 
   /**
    * Game loop
@@ -255,19 +281,22 @@ const SnakeGameScreen = (): React.JSX.Element => {
   /**
    * Cambiar dirección
    */
-  const changeDirection = useCallback((newDirection: Direction) => {
-    // Evitar reverso inmediato
-    const opposites: Record<Direction, Direction> = {
-      up: 'down',
-      down: 'up',
-      left: 'right',
-      right: 'left',
-    };
+  const changeDirection = useCallback(
+    (newDirection: Direction) => {
+      // Evitar reverso inmediato
+      const opposites: Record<Direction, Direction> = {
+        up: 'down',
+        down: 'up',
+        left: 'right',
+        right: 'left',
+      };
 
-    if (opposites[newDirection] !== direction) {
-      setNextDirection(newDirection);
-    }
-  }, [direction]);
+      if (opposites[newDirection] !== direction) {
+        setNextDirection(newDirection);
+      }
+    },
+    [direction],
+  );
 
   /**
    * Pausar el juego
@@ -382,7 +411,12 @@ const SnakeGameScreen = (): React.JSX.Element => {
   const renderMenu = () => (
     <View style={styles.overlay}>
       <View style={styles.overlayContent}>
-        <Icon name="game-controller" size="5xl" color={Colors.primary} style={styles.overlayIcon} />
+        <Icon
+          name="game-controller"
+          size="5xl"
+          color={Colors.primary}
+          style={styles.overlayIcon}
+        />
         <Text style={styles.overlayTitle}>Snake</Text>
         <Text style={styles.overlaySubtitle}>
           ¡Come para crecer y evitar colisiones!
@@ -434,7 +468,12 @@ const SnakeGameScreen = (): React.JSX.Element => {
   const renderPaused = () => (
     <View style={styles.overlay}>
       <View style={styles.overlayContent}>
-        <Icon name="pause-circle" size="5xl" color={Colors.primary} style={styles.overlayIcon} />
+        <Icon
+          name="pause-circle"
+          size="5xl"
+          color={Colors.primary}
+          style={styles.overlayIcon}
+        />
         <Text style={styles.overlayTitle}>Pausa</Text>
         <GradientButton
           title="CONTINUAR"
@@ -470,7 +509,12 @@ const SnakeGameScreen = (): React.JSX.Element => {
   const renderGameOver = () => (
     <View style={styles.overlay}>
       <View style={styles.overlayContent}>
-        <Icon name="trophy" size="5xl" color={Colors.warning} style={styles.overlayIcon} />
+        <Icon
+          name="trophy"
+          size="5xl"
+          color={Colors.warning}
+          style={styles.overlayIcon}
+        />
         <Text style={styles.overlayTitle}>¡Juego Terminado!</Text>
         <Text style={styles.scoreText}>Puntuación: {score}</Text>
         {score >= highScore && score > 0 && (
@@ -484,7 +528,11 @@ const SnakeGameScreen = (): React.JSX.Element => {
           </View>
           <View style={styles.statItem}>
             <Icon name="time" size="lg" color={Colors.primary} />
-            <Text style={styles.statValue}>{Math.floor((GAME_DURATION - timeLeft) / 60)}:{(GAME_DURATION - timeLeft) % 60 < 10 ? '0' : ''}{(GAME_DURATION - timeLeft) % 60}</Text>
+            <Text style={styles.statValue}>
+              {Math.floor((GAME_DURATION - timeLeft) / 60)}:
+              {(GAME_DURATION - timeLeft) % 60 < 10 ? '0' : ''}
+              {(GAME_DURATION - timeLeft) % 60}
+            </Text>
             <Text style={styles.statLabel}>Tiempo</Text>
           </View>
         </View>
@@ -521,18 +569,18 @@ const SnakeGameScreen = (): React.JSX.Element => {
           </View>
 
           <View style={styles.timerContainer}>
-            <Text style={[
-              styles.timerText,
-              timeLeft <= 30 && styles.timerTextUrgent
-            ]}>
-              {Math.floor(timeLeft / 60)}:{timeLeft % 60 < 10 ? '0' : ''}{timeLeft % 60}
+            <Text
+              style={[
+                styles.timerText,
+                timeLeft <= 30 && styles.timerTextUrgent,
+              ]}
+            >
+              {Math.floor(timeLeft / 60)}:{timeLeft % 60 < 10 ? '0' : ''}
+              {timeLeft % 60}
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.pauseButton}
-            onPress={pauseGame}
-          >
+          <TouchableOpacity style={styles.pauseButton} onPress={pauseGame}>
             <Icon name="pause" size="lg" color={Colors.text} />
           </TouchableOpacity>
         </View>

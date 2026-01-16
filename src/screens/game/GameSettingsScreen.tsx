@@ -12,19 +12,22 @@ import {
   TextInput,
   Alert,
   Animated,
+  TouchableOpacity,
+  Switch,
 } from 'react-native';
 import { APP_CONFIG } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { Colors, Spacing, Typography, BorderRadius } from '../../theme';
-import { Icon, SettingRow, Accordion, GradientButton, Card } from '../../components';
+import { Icon, Accordion, GradientButton, Card } from '../../components';
 
 const GameSettingsScreen = (): React.JSX.Element => {
   // Estado del juego desde el store
-  const { soundEnabled, language, updateSettings, enableCommunicationAccess } = useAppStore();
+  const { soundEnabled, language, updateSettings, loginWithCode } =
+    useAppStore();
 
-  // Estado local para el acceso avanzado
-  const [accessCode, setAccessCode] = useState('');
-  const [showAdvancedAccess, setShowAdvancedAccess] = useState(false);
+  // Estado local para el código promocional
+  const [promoCode, setPromoCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Valores para animaciones
   const opacity = useRef(new Animated.Value(0)).current;
@@ -61,7 +64,7 @@ const GameSettingsScreen = (): React.JSX.Element => {
     Alert.alert(
       'Idioma cambiado',
       `Idioma establecido a ${newLanguage === 'es' ? 'Español' : 'Inglés'}`,
-      [{ text: 'OK', style: 'default' }]
+      [{ text: 'OK', style: 'default' }],
     );
   };
 
@@ -73,129 +76,227 @@ const GameSettingsScreen = (): React.JSX.Element => {
   };
 
   /**
-   * Valida e intenta habilitar el acceso al modo comunicación
+   * Valida el código promocional (acceso secreto)
    */
-  const handleAdvancedAccess = () => {
-    if (!accessCode.trim()) {
-      Alert.alert('Error', 'Por favor ingresa un código de acceso');
+  const handlePromoCode = async () => {
+    if (!promoCode.trim()) {
+      Alert.alert('Código inválido', 'Por favor ingresa un código promocional');
       return;
     }
 
-    // Validar el código de acceso
-    const isValidCode =
-      accessCode === APP_CONFIG.DEFAULT_ACCESS_CODE ||
-      accessCode === APP_CONFIG.ADVANCED_ACCESS_CODE;
+    setIsLoading(true);
+    try {
+      const success = await loginWithCode(promoCode);
 
-    if (isValidCode) {
-      enableCommunicationAccess();
-      Alert.alert(
-        '¡Acceso Habilitado!',
-        'Ahora puedes acceder al modo comunicación desde la configuración.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setAccessCode('');
-              setShowAdvancedAccess(false);
+      if (success) {
+        Alert.alert(
+          '¡Promoción Activada!',
+          'Has desbloqueado beneficios especiales',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setPromoCode('');
+              },
             },
-          },
-        ]
+          ],
+        );
+      } else {
+        Alert.alert(
+          'Código inválido',
+          'El código promocional ingresado no es válido o ha expirado',
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Código inválido',
+        'El código promocional ingresado no es válido o ha expirado',
       );
-    } else {
-      Alert.alert('Código Inválido', 'El código ingresado no es correcto');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View style={animatedStyle}>
           {/* Header */}
           <View style={styles.header}>
-            <Icon name="settings" size="xl" color={Colors.primary} />
             <Text style={styles.headerTitle}>Configuración</Text>
           </View>
 
-          {/* Sección de Preferencias de Sonido */}
-          <Card style={styles.section} variant="elevated">
-            <SettingRow
-              icon="volume-high"
-              label="Sonido habilitado"
-              description="Activar o desactivar efectos de sonido"
-              value={soundEnabled}
-              onValueChange={handleSoundToggle}
-              iconColor={Colors.primary}
-            />
-          </Card>
+          {/* Sección Principal */}
+          <Card style={styles.settingsCard} variant="elevated">
+            {/* Perfil */}
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+              <View
+                style={[styles.iconContainer, { backgroundColor: '#F3E5F5' }]}
+              >
+                <Icon name="person" size="lg" color="#9C27B0" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Perfil</Text>
+                <Text style={styles.settingDescription}>
+                  Editar información personal
+                </Text>
+              </View>
+              <Icon
+                name="chevron-forward"
+                size="md"
+                color={Colors.textSecondary}
+              />
+            </TouchableOpacity>
 
-          {/* Sección de Idioma */}
-          <Card style={styles.section} variant="elevated">
-            <SettingRow
-              icon="globe"
-              label="Idioma"
-              description={`Idioma actual: ${language === 'es' ? 'Español' : 'Inglés'}`}
+            <View style={styles.divider} />
+
+            {/* Notificaciones */}
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+              <View
+                style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}
+              >
+                <Icon name="notifications" size="lg" color="#4CAF50" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Notificaciones</Text>
+                <Text style={styles.settingDescription}>Gestionar alertas</Text>
+              </View>
+              <Icon
+                name="chevron-forward"
+                size="md"
+                color={Colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* Apariencia / Idioma */}
+            <TouchableOpacity
+              style={styles.settingItem}
+              activeOpacity={0.7}
               onPress={handleLanguageChange}
-              iconColor={Colors.secondary}
-            />
+            >
+              <View
+                style={[styles.iconContainer, { backgroundColor: '#FFF3E0' }]}
+              >
+                <Icon name="color-palette" size="lg" color="#FF9800" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Apariencia</Text>
+                <Text style={styles.settingDescription}>
+                  {language === 'es' ? 'Español' : 'English'}
+                </Text>
+              </View>
+              <Icon
+                name="chevron-forward"
+                size="md"
+                color={Colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* Privacidad / Sonido */}
+            <View style={styles.settingItem}>
+              <View
+                style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}
+              >
+                <Icon
+                  name={soundEnabled ? 'volume-high' : 'volume-mute'}
+                  size="lg"
+                  color="#2196F3"
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Sonido</Text>
+                <Text style={styles.settingDescription}>
+                  {soundEnabled ? 'Activado' : 'Desactivado'}
+                </Text>
+              </View>
+              <Switch
+                value={soundEnabled}
+                onValueChange={handleSoundToggle}
+                trackColor={{
+                  false: Colors.borderLight,
+                  true: Colors.primaryLight,
+                }}
+                thumbColor={soundEnabled ? Colors.primary : Colors.surface}
+                ios_backgroundColor={Colors.borderLight}
+              />
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Ayuda */}
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+              <View
+                style={[styles.iconContainer, { backgroundColor: '#FCE4EC' }]}
+              >
+                <Icon name="help-circle" size="lg" color="#E91E63" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Ayuda</Text>
+                <Text style={styles.settingDescription}>
+                  Soporte y preguntas
+                </Text>
+              </View>
+              <Icon
+                name="chevron-forward"
+                size="md"
+                color={Colors.textSecondary}
+              />
+            </TouchableOpacity>
           </Card>
 
-          {/* Sección de Acceso Avanzado */}
+          {/* Sección de Código Promocional */}
           <Accordion
-            title="Acceso Avanzado"
-            icon="lock-closed"
+            title="Código Promocional"
+            icon="gift"
             initiallyOpen={false}
-            iconColor={Colors.warning}
+            iconColor={Colors.success}
             style={styles.section}
           >
             <Text style={styles.advancedDescription}>
-              Ingresa un código de acceso para habilitar funcionalidades adicionales del modo comunicación.
+              ¿Tienes un código de promoción? Ingrésalo aquí para desbloquear
+              beneficios especiales y descuentos exclusivos.
             </Text>
 
             <View style={styles.inputContainer}>
-              <Icon name="key" size="md" color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon
+                name="ticket"
+                size="md"
+                color={Colors.textSecondary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.accessInput}
-                placeholder="Código de acceso"
+                placeholder="Ingresa tu código"
                 placeholderTextColor={Colors.textLight}
-                value={accessCode}
-                onChangeText={setAccessCode}
-                secureTextEntry
+                value={promoCode}
+                onChangeText={setPromoCode}
                 autoCapitalize="none"
                 autoComplete="off"
+                editable={!isLoading}
               />
             </View>
 
             <GradientButton
-              title="Continuar"
-              onPress={handleAdvancedAccess}
-              variant="primary"
-              icon="arrow-forward"
+              title={isLoading ? 'Validando...' : 'Aplicar Código'}
+              onPress={handlePromoCode}
+              variant="success"
+              icon="checkmark-circle"
               fullWidth
               style={styles.continueButton}
+              disabled={isLoading}
             />
           </Accordion>
 
-          {/* Sección de Información */}
-          <Card style={styles.section} variant="elevated">
-            <SettingRow
-              icon="information-circle"
-              label="Versión"
-              description="1.0.0"
-              iconColor={Colors.info}
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              icon="game-controller"
-              label="Modo"
-              description="Juego"
-              iconColor={Colors.success}
-            />
-          </Card>
-
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Pocket Quest v1.0.0</Text>
-            <Text style={styles.footerSubtext}>Modo Juego Activo</Text>
+            <Text style={styles.footerText}>Versión 2.4.1</Text>
           </View>
         </Animated.View>
       </ScrollView>
@@ -210,18 +311,54 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.md,
+    paddingBottom: Spacing.xl,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-    padding: Spacing.md,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   headerTitle: {
     ...Typography.heading.large,
     color: Colors.text,
     fontWeight: '700',
-    marginLeft: Spacing.md,
+    fontSize: 28,
+  },
+  settingsCard: {
+    marginBottom: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingLabel: {
+    ...Typography.body.large,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  settingDescription: {
+    ...Typography.body.small,
+    color: Colors.textSecondary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginLeft: 76, // Alineado con el texto (48px icono + 16px margen + 12px padding)
   },
   section: {
     marginBottom: Spacing.md,
@@ -254,22 +391,12 @@ const styles = StyleSheet.create({
   continueButton: {
     marginTop: Spacing.xs,
   },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderLight,
-    marginVertical: Spacing.sm,
-  },
   footer: {
     alignItems: 'center',
     padding: Spacing.lg,
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
   footerText: {
-    ...Typography.label.regular,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-  },
-  footerSubtext: {
     ...Typography.body.small,
     color: Colors.textLight,
   },

@@ -1,9 +1,10 @@
 /**
  * Servicio de Mensajes
- * Maneja el envío y recepción de mensajes
+ * Maneja el envío y recepción de mensajes con cifrado E2EE
  */
 
 import { apiService, API_ENDPOINTS } from './apiService';
+import { cryptoService } from './cryptoService';
 
 /**
  * Interfaces para mensajes
@@ -13,11 +14,20 @@ export interface Message {
   chatId: string;
   senderId: string;
   cipherText: string;
+  decryptedText?: string; // Texto descifrado (solo cliente)
   mediaId?: string;
   ttlHours?: number;
   createdAt: string;
   deliveredAt?: string;
   readAt?: string;
+}
+
+export interface SendMessageParams {
+  chatId: string;
+  message: string;
+  recipientPublicKey: string;
+  mediaId?: string;
+  ttlHours?: number;
 }
 
 export interface GetMessagesParams {
@@ -31,7 +41,43 @@ export interface GetMessagesParams {
  */
 class MessageService {
   /**
-   * Obtener mensajes de un chat
+   * Enviar mensaje cifrado
+   */
+  async sendMessage(params: SendMessageParams): Promise<Message> {
+    const { chatId, message, recipientPublicKey, mediaId, ttlHours } = params;
+
+    try {
+      // Cifrar mensaje con la clave pública del destinatario
+      console.log('🔒 Cifrando mensaje...');
+      const cipherText = cryptoService.encryptMessage(
+        message,
+        recipientPublicKey,
+      );
+
+      // Enviar mensaje cifrado al backend
+      const response = await apiService.post<Message>(
+        `/chats/${chatId}/messages`,
+        {
+          cipherText,
+          mediaId,
+          ttlHours,
+        },
+      );
+
+      if (response.success && response.data) {
+        console.log('✅ Mensaje enviado cifrado');
+        return response.data;
+      }
+
+      throw new Error(response.error || 'Error al enviar mensaje');
+    } catch (error: any) {
+      console.error('❌ Error al enviar mensaje:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener mensajes de un chat y descifrarlos
    */
   async getMessages(params: GetMessagesParams): Promise<Message[]> {
     const { chatId, limit = 50, before } = params;
@@ -45,7 +91,32 @@ class MessageService {
     const response = await apiService.get<Message[]>(endpoint);
 
     if (response.success && response.data) {
-      return response.data;
+      // Descifrar cada mensaje
+      console.log(`🔓 Descifrando ${response.data.length} mensajes...`);
+
+      const decryptedMessages = await Promise.all(
+        response.data.map(async msg => {
+          try {
+            const decryptedText = await cryptoService.decryptMessage(
+              msg.cipherText,
+            );
+            return {
+              ...msg,
+              decryptedText,
+            };
+          } catch (error) {
+            console.error(`❌ Error al descifrar mensaje ${msg.id}:`, error);
+            // Si no se puede descifrar, dejar el mensaje sin descifrar
+            return {
+              ...msg,
+              decryptedText: '[Mensaje cifrado - Error al descifrar]',
+            };
+          }
+        }),
+      );
+
+      console.log('✅ Mensajes descifrados');
+      return decryptedMessages;
     }
 
     throw new Error(response.error || 'Error al obtener mensajes');

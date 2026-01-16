@@ -14,6 +14,9 @@ import {
   Notification,
   APP_CONFIG,
 } from '../types';
+import { authService, LoginResponse } from '../services/authService';
+import { chatService, Chat, Message } from '../services/chatService';
+import { messageService } from '../services/messageService';
 
 // ============================
 // STORE DE JUEGO
@@ -44,10 +47,15 @@ const initialGameState: GameState = {
 // ============================
 
 interface AuthStore extends AuthState {
+  // Datos de autenticación
+  accessToken: string | null;
+  user: LoginResponse['user'] | null;
+
   // Acciones de autenticación
-  login: (accessCode: string) => Promise<boolean>;
+  loginWithCode: (loginCode: string) => Promise<boolean>;
   logout: () => void;
   setSessionActive: (active: boolean) => void;
+  checkAuthStatus: () => Promise<void>;
 }
 
 const initialAuthState: AuthState = {
@@ -63,12 +71,16 @@ const initialAuthState: AuthState = {
 
 interface CommunicationStore {
   conversations: Conversation[];
+  chats: Chat[];
+  messages: { [chatId: string]: Message[] };
   activeConversationId: string | null;
   temporaryMessagesEnabled: boolean;
   temporaryDuration: number;
 
   // Acciones de comunicación
   setConversations: (conversations: Conversation[]) => void;
+  setChats: (chats: Chat[]) => void;
+  setMessages: (chatId: string, messages: Message[]) => void;
   setActiveConversation: (conversationId: string | null) => void;
   addMessage: (
     conversationId: string,
@@ -81,45 +93,14 @@ interface CommunicationStore {
   ) => void;
   clearConversation: (conversationId: string) => void;
   resetCommunication: () => void;
+  loadChats: () => Promise<void>;
+  loadMessages: (chatId: string) => Promise<void>;
 }
 
 const initialCommunicationState = {
-  conversations: [
-    {
-      id: '1',
-      name: 'Equipo Pocket Quest',
-      lastMessage: '¡Bienvenido al modo comunicación!',
-      lastMessageTime: new Date(),
-      unreadCount: 1,
-      onlineStatus: 'online' as const,
-      messages: [
-        {
-          id: 'm1',
-          conversationId: '1',
-          content: '¡Bienvenido al modo comunicación!',
-          timestamp: new Date(),
-          isFromUser: false,
-        },
-      ],
-    },
-    {
-      id: '2',
-      name: 'Misión Diaria',
-      lastMessage: 'Nueva misión disponible',
-      lastMessageTime: new Date(Date.now() - 3600000),
-      unreadCount: 0,
-      onlineStatus: 'online' as const,
-      messages: [
-        {
-          id: 'm2',
-          conversationId: '2',
-          content: 'Nueva misión disponible',
-          timestamp: new Date(Date.now() - 3600000),
-          isFromUser: false,
-        },
-      ],
-    },
-  ],
+  conversations: [],
+  chats: [],
+  messages: {},
   activeConversationId: null,
   temporaryMessagesEnabled: false,
   temporaryDuration: APP_CONFIG.DEFAULT_TEMPORARY_DURATION,
@@ -150,7 +131,9 @@ const initialAppContext: AppContext = {
 
 interface NotificationStore {
   notifications: Notification[];
-  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  addNotification: (
+    notification: Omit<Notification, 'id' | 'timestamp' | 'read'>,
+  ) => void;
   markAsRead: (notificationId: string) => void;
   clearNotifications: () => void;
 }
@@ -159,7 +142,12 @@ interface NotificationStore {
 // STORE UNIFICADO
 // ============================
 
-interface AppStore extends GameStore, AuthStore, CommunicationStore, AppContextStore, NotificationStore {}
+interface AppStore
+  extends GameStore,
+    AuthStore,
+    CommunicationStore,
+    AppContextStore,
+    NotificationStore {}
 
 export const useAppStore = create<AppStore>((set, get) => ({
   // ============================
@@ -175,12 +163,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   updateCoins: (coins: number) => set({ coins }),
 
   addCoins: (amount: number) =>
-    set((state) => ({
+    set(state => ({
       coins: state.coins + amount,
     })),
 
   addExperience: (amount: number) =>
-    set((state) => {
+    set(state => {
       const newExperience = state.experience + amount;
       const experiencePerLevel = 100;
       const newLevel = Math.floor(newExperience / experiencePerLevel) + 1;
@@ -191,7 +179,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }),
 
   updateSettings: (settings: Partial<GameSettings>) =>
-    set((state) => ({
+    set(state => ({
       ...state,
       ...settings,
     })),
@@ -202,33 +190,67 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // ESTADO INICIAL DE AUTENTICACIÓN
   // ============================
   ...initialAuthState,
+  accessToken: null,
+  user: null,
 
   // Acciones de autenticación
   login: async (accessCode: string): Promise<boolean> => {
-    // Validación simulada del código de acceso
-    const isValidCode =
-      accessCode === APP_CONFIG.DEFAULT_ACCESS_CODE ||
-      accessCode === APP_CONFIG.ADVANCED_ACCESS_CODE;
-
-    if (isValidCode) {
-      set({
-        isAuthenticated: true,
-        accessCode,
-        requiresAccessCode: false,
-        sessionActive: true,
-      });
-      return true;
-    }
-
-    return false;
+    // Método legacy - ahora redirige a loginWithCode
+    return await get().loginWithCode(accessCode);
   },
 
-  logout: () =>
+  loginWithCode: async (loginCode: string) => {
+    try {
+      const response = await authService.loginWithCode(loginCode);
+      set({
+        isAuthenticated: true,
+        accessCode: loginCode,
+        accessToken: response.accessToken,
+        user: response.user,
+        requiresAccessCode: false,
+        sessionActive: true,
+        canAccessCommunication: true,
+        currentMode: 'communication',
+      });
+
+      // Cargar chats al autenticarse
+      await get().loadChats();
+
+      return true;
+    } catch (error) {
+      console.error('Error en login:', error);
+      return false;
+    }
+  },
+
+  logout: async () => {
+    await authService.logout();
     set({
-      isAuthenticated: false,
-      accessCode: '',
-      sessionActive: false,
-    }),
+      ...initialAuthState,
+      accessToken: null,
+      user: null,
+      chats: [],
+      messages: {},
+      currentMode: 'game',
+    });
+  },
+
+  setSessionActive: (active: boolean) => set({ sessionActive: active }),
+
+  checkAuthStatus: async () => {
+    const isAuth = await authService.isAuthenticated();
+    if (isAuth) {
+      const token = await authService.getAccessToken();
+      const user = await authService.getCurrentUser();
+      set({
+        isAuthenticated: true,
+        accessToken: token,
+        user,
+        canAccessCommunication: true,
+      });
+      await get().loadChats();
+    }
+  },
 
   setSessionActive: (active: boolean) => set({ sessionActive: active }),
 
@@ -240,12 +262,41 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // Acciones de comunicación
   setConversations: (conversations: Conversation[]) => set({ conversations }),
 
+  setChats: (chats: Chat[]) => set({ chats }),
+
+  setMessages: (chatId: string, messages: Message[]) =>
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [chatId]: messages,
+      },
+    })),
+
+  loadChats: async () => {
+    try {
+      const chats = await chatService.getChats();
+      set({ chats });
+    } catch (error) {
+      console.error('Error cargando chats:', error);
+    }
+  },
+
+  loadMessages: async (chatId: string) => {
+    try {
+      // Usar messageService que descifra automáticamente
+      const messages = await messageService.getMessages({ chatId, limit: 50 });
+      get().setMessages(chatId, messages);
+    } catch (error) {
+      console.error('Error cargando mensajes:', error);
+    }
+  },
+
   setActiveConversation: (conversationId: string | null) =>
     set({ activeConversationId: conversationId }),
 
   addMessage: (conversationId: string, content: string, isFromUser: boolean) =>
-    set((state) => {
-      const conversations = state.conversations.map((conv) => {
+    set(state => {
+      const conversations = state.conversations.map(conv => {
         if (conv.id === conversationId) {
           const newMessage = {
             id: `msg-${Date.now()}`,
@@ -276,8 +327,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }),
 
   clearConversation: (conversationId: string) =>
-    set((state) => ({
-      conversations: state.conversations.map((conv) =>
+    set(state => ({
+      conversations: state.conversations.map(conv =>
         conv.id === conversationId
           ? { ...conv, messages: [], lastMessage: undefined, unreadCount: 0 }
           : conv,
@@ -297,13 +348,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // Acciones de contexto
   switchToGameMode: () =>
-    set((state) => ({
+    set(state => ({
       currentMode: 'game',
       previousMode: state.currentMode,
     })),
 
   switchToCommunicationMode: () =>
-    set((state) => ({
+    set(state => ({
       currentMode: 'communication',
       previousMode: state.currentMode,
     })),
@@ -314,7 +365,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }),
 
   switchMode: (mode: AppMode) =>
-    set((state) => ({
+    set(state => ({
       currentMode: mode,
       previousMode: state.currentMode,
     })),
@@ -331,8 +382,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   notifications: [],
 
   // Acciones de notificaciones
-  addNotification: (notification) =>
-    set((state) => ({
+  addNotification: notification =>
+    set(state => ({
       notifications: [
         {
           ...notification,
@@ -345,8 +396,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     })),
 
   markAsRead: (notificationId: string) =>
-    set((state) => ({
-      notifications: state.notifications.map((notif) =>
+    set(state => ({
+      notifications: state.notifications.map(notif =>
         notif.id === notificationId ? { ...notif, read: true } : notif,
       ),
     })),
@@ -366,7 +417,7 @@ export const selectCanAccessCommunication = (state: AppStore) =>
   state.canAccessCommunication;
 
 export const selectActiveConversation = (state: AppStore) =>
-  state.conversations.find((c) => c.id === state.activeConversationId);
+  state.conversations.find(c => c.id === state.activeConversationId);
 
 export const selectUnreadNotifications = (state: AppStore) =>
-  state.notifications.filter((n) => !n.read);
+  state.notifications.filter(n => !n.read);

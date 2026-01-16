@@ -93,11 +93,11 @@ interface LoginResponse {
 
 export const login = async (params: LoginParams): Promise<LoginResponse> => {
   const response = await api.post('/auth/login', params);
-  
+
   // Guardar token
   await AsyncStorage.setItem('accessToken', response.data.accessToken);
   await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-  
+
   return response.data;
 };
 
@@ -318,10 +318,10 @@ export const getMessages = async ({ chatId, limit = 50, before }: GetMessagesPar
 
 // Ejemplo con paginación
 const messages = await getMessages({ chatId: 'chat-123', limit: 20 });
-const olderMessages = await getMessages({ 
-  chatId: 'chat-123', 
-  limit: 20, 
-  before: messages[messages.length - 1].id 
+const olderMessages = await getMessages({
+  chatId: 'chat-123',
+  limit: 20,
+  before: messages[messages.length - 1].id
 });
 ```
 
@@ -351,7 +351,7 @@ let socket: Socket | null = null;
 
 export const connectSocket = async () => {
   const token = await AsyncStorage.getItem('accessToken');
-  
+
   if (!token) {
     throw new Error('No authentication token');
   }
@@ -396,7 +396,7 @@ interface SendMessageData {
 export const sendMessage = (data: SendMessageData) => {
   const socket = getSocket();
   if (!socket) throw new Error('Socket not connected');
-  
+
   socket.emit('send_message', data, (response: any) => {
     console.log('Message sent:', response);
   });
@@ -523,7 +523,7 @@ export const uploadMedia = async ({ file }: UploadMediaParams) => {
       'Content-Type': 'multipart/form-data',
     },
   });
-  
+
   return response.data;
 };
 
@@ -535,16 +535,16 @@ const encryptAndUpload = async (fileUri: string) => {
   const fileContent = await FileSystem.readAsStringAsync(fileUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
-  
+
   // 2. Cifrar contenido (usando tu biblioteca de crypto)
   const encrypted = await encryptFile(fileContent);
-  
+
   // 3. Crear archivo temporal cifrado
   const tempUri = FileSystem.cacheDirectory + 'encrypted_file.bin';
   await FileSystem.writeAsStringAsync(tempUri, encrypted, {
     encoding: FileSystem.EncodingType.Base64,
   });
-  
+
   // 4. Subir
   const result = await uploadMedia({
     file: {
@@ -553,7 +553,7 @@ const encryptAndUpload = async (fileUri: string) => {
       name: 'encrypted_file.bin',
     },
   });
-  
+
   return result;
 };
 ```
@@ -566,7 +566,7 @@ export const downloadMedia = async (mediaId: string) => {
   const response = await api.get(`/media/${mediaId}`, {
     responseType: 'blob',
   });
-  
+
   return response.data;
 };
 
@@ -574,23 +574,23 @@ export const downloadMedia = async (mediaId: string) => {
 const downloadAndDecrypt = async (mediaId: string) => {
   // 1. Descargar
   const encryptedBlob = await downloadMedia(mediaId);
-  
+
   // 2. Leer como base64
   const reader = new FileReader();
   reader.readAsDataURL(encryptedBlob);
-  
+
   reader.onloadend = async () => {
     const base64 = reader.result as string;
-    
+
     // 3. Descifrar
     const decrypted = await decryptFile(base64);
-    
+
     // 4. Guardar
     const filePath = FileSystem.documentDirectory + 'downloaded_file';
     await FileSystem.writeAsStringAsync(filePath, decrypted, {
       encoding: FileSystem.EncodingType.Base64,
     });
-    
+
     return filePath;
   };
 };
@@ -654,13 +654,13 @@ setInterval(() => {
 // POST /api/panic/lock
 export const lockCurrentDevice = async (deviceId: string) => {
   const response = await api.post('/panic/lock', { deviceId });
-  
+
   // Limpiar datos locales
   await AsyncStorage.clear();
-  
+
   // Desconectar socket
   disconnectSocket();
-  
+
   return response.data;
 };
 ```
@@ -671,11 +671,11 @@ export const lockCurrentDevice = async (deviceId: string) => {
 // POST /api/panic/lock-all
 export const lockAllDevices = async () => {
   const response = await api.post('/panic/lock-all');
-  
+
   // Limpiar todo
   await AsyncStorage.clear();
   disconnectSocket();
-  
+
   return response.data;
 };
 ```
@@ -751,10 +751,10 @@ export const ChatScreen = ({ chatId }) => {
 
   const handleSend = () => {
     if (!text.trim()) return;
-    
+
     // Cifrar mensaje
     const encrypted = encryptMessage(text);
-    
+
     // Enviar
     send(encrypted);
     setText('');

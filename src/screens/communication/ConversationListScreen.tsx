@@ -1,9 +1,9 @@
 /**
  * Pantalla de Lista de Conversaciones
- * Muestra todas las conversaciones disponibles
+ * Muestra todas las conversaciones disponibles con diseño moderno
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,180 +11,207 @@ import {
   FlatList,
   TouchableOpacity,
   SafeAreaView,
+  TextInput,
+  Alert,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CommunicationStackParamList } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import useAppNavigation from '../../hooks/useNavigation';
 
-type NavigationProps = NativeStackNavigationProp<CommunicationStackParamList, 'ConversationList'>;
-
-interface ConversationItemProps {
-  id: string;
-  name: string;
-  lastMessage?: string;
-  lastMessageTime?: Date;
-  unreadCount: number;
-  onlineStatus: 'online' | 'offline' | 'away';
-  onPress: () => void;
-}
-
-/**
- * Componente de item de conversación
- */
-const ConversationItem = ({
-  name,
-  lastMessage,
-  lastMessageTime,
-  unreadCount,
-  onlineStatus,
-  onPress,
-}: ConversationItemProps): React.JSX.Element => {
-  const formatTime = (date?: Date): string => {
-    if (!date) return '';
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-
-    if (minutes < 1) return 'Ahora';
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
-    return date.toLocaleDateString();
-  };
-
-  const getStatusColor = () => {
-    switch (onlineStatus) {
-      case 'online':
-        return '#4CAF50';
-      case 'away':
-        return '#FF9800';
-      case 'offline':
-        return '#9E9E9E';
-      default:
-        return '#9E9E9E';
-    }
-  };
-
-  return (
-    <TouchableOpacity style={styles.conversationItem} onPress={onPress} activeOpacity={0.7}>
-      {/* Avatar */}
-      <View style={styles.avatarContainer}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={[styles.onlineStatus, { backgroundColor: getStatusColor() }]} />
-      </View>
-
-      {/* Contenido */}
-      <View style={styles.conversationContent}>
-        <View style={styles.conversationHeader}>
-          <Text style={styles.conversationName}>{name}</Text>
-          {lastMessageTime && (
-            <Text style={styles.conversationTime}>
-              {formatTime(lastMessageTime)}
-            </Text>
-          )}
-        </View>
-
-        <View style={styles.conversationFooter}>
-          <Text
-            style={[styles.conversationLastMessage, unreadCount > 0 && styles.messageUnread]}
-            numberOfLines={1}
-          >
-            {lastMessage || 'Sin mensajes'}
-          </Text>
-
-          {unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>{unreadCount}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
+type NavigationProps = NativeStackNavigationProp<
+  CommunicationStackParamList,
+  'ConversationList'
+>;
 
 /**
  * Pantalla principal de lista de conversaciones
  */
 const ConversationListScreen = (): React.JSX.Element => {
   const navigation = useNavigation<NavigationProps>();
-  const { goToGameMode } = useAppNavigation();
+  const { chats, loadChats, logout } = useAppStore();
 
-  // Obtener conversaciones desde el store
-  const { conversations } = useAppStore();
+  useEffect(() => {
+    loadChats();
+  }, []);
+
+  // Función del botón de pánico
+  const handlePanicButton = () => {
+    Alert.alert(
+      '⚠️ Salida de Emergencia',
+      '¿Volver al modo de juegos?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Salir',
+          style: 'destructive',
+          onPress: () => {
+            console.log('🚨 Botón de pánico activado');
+            logout();
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  // Obtener iniciales para avatares sin foto
+  const getInitials = (name: string) => {
+    const words = name.split(' ');
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  // Colores para avatares
+  const avatarColors = [
+    ['#667eea', '#764ba2'], // púrpura
+    ['#f093fb', '#f5576c'], // rosa
+    ['#4facfe', '#00f2fe'], // azul
+    ['#43e97b', '#38f9d7'], // verde
+    ['#fa709a', '#fee140'], // naranja
+  ];
 
   /**
    * Navega a una conversación específica
    */
-  const handleConversationPress = (conversationId: string) => {
-    (navigation as any).navigate('Conversation', { conversationId });
+  const handleConversationPress = (chatId: string) => {
+    (navigation as any).navigate('Conversation', { chatId });
   };
 
   /**
    * Renderiza cada conversación
    */
-  const renderConversation = ({ item }: { item: typeof conversations[0] }) => {
-    return (
-      <ConversationItem
-        id={item.id}
-        name={item.name}
-        lastMessage={item.lastMessage}
-        lastMessageTime={item.lastMessageTime}
-        unreadCount={item.unreadCount}
-        onlineStatus={item.onlineStatus}
-        onPress={() => handleConversationPress(item.id)}
-      />
-    );
-  };
+  const renderConversation = ({
+    item,
+    index,
+  }: {
+    item: any;
+    index: number;
+  }) => {
+    const colors = avatarColors[index % avatarColors.length];
 
-  /**
-   * Header personalizado con botón para volver al juego
-   */
-  const ReactHeaderLeft = () => {
     return (
-      <TouchableOpacity onPress={goToGameMode} style={styles.headerButton}>
-        <Text style={styles.headerButtonText}>🎮 Juego</Text>
+      <TouchableOpacity
+        style={styles.conversationItem}
+        onPress={() => handleConversationPress(item.id)}
+        activeOpacity={0.8}
+      >
+        {item.participant?.avatarUrl ? (
+          <Image
+            source={{ uri: item.participant.avatarUrl }}
+            style={styles.avatar}
+          />
+        ) : (
+          <LinearGradient
+            colors={colors}
+            style={styles.avatar}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.avatarText}>
+              {getInitials(item.participant?.name || 'U')}
+            </Text>
+          </LinearGradient>
+        )}
+
+        <View style={styles.conversationContent}>
+          <View style={styles.conversationHeader}>
+            <Text style={styles.conversationName}>
+              {item.participant?.name || 'Usuario'}
+            </Text>
+            {item.unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>{item.unreadCount}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.messageRow}>
+            <Icon
+              name="lock"
+              size={14}
+              color="#64748B"
+              style={styles.lockIcon}
+            />
+            <Text style={styles.conversationLastMessage} numberOfLines={1}>
+              {item.lastMessage?.text || 'Mensaje cifrado'}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.conversationTime}>
+          {item.lastMessage?.createdAt
+            ? new Date(item.lastMessage.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : ''}
+        </Text>
       </TouchableOpacity>
     );
   };
 
-  // Establecer el header left
-  React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => <ReactHeaderLeft />,
-    });
-  }, [navigation]);
-
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Conversaciones</Text>
-        <Text style={styles.headerSubtitle}>
-          {conversations.length} {conversations.length === 1 ? 'chat' : 'chats'}
-        </Text>
+        <Icon name="shield-lock" size={24} color="#64748B" />
       </View>
 
-      {conversations.length > 0 ? (
+      {/* Barra de búsqueda */}
+      <View style={styles.searchContainer}>
+        <Icon
+          name="magnify"
+          size={20}
+          color="#64748B"
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar conversaciones..."
+          placeholderTextColor="#64748B"
+        />
+      </View>
+
+      {/* Lista de conversaciones */}
+      {chats.length > 0 ? (
         <FlatList
-          data={conversations}
+          data={chats}
           renderItem={renderConversation}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
         />
       ) : (
         <View style={styles.emptyContainer}>
+          <Icon name="message-lock" size={64} color="#475569" />
           <Text style={styles.emptyText}>No tienes conversaciones</Text>
           <Text style={styles.emptySubtext}>
-            Tus conversaciones aparecerán aquí
+            Tus conversaciones cifradas aparecerán aquí
           </Text>
         </View>
       )}
+
+      {/* Botón de pánico flotante */}
+      <TouchableOpacity
+        style={styles.panicButton}
+        onPress={handlePanicButton}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={['#EF4444', '#DC2626']}
+          style={styles.panicGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Icon name="exit-run" size={28} color="#FFFFFF" />
+        </LinearGradient>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -192,121 +219,108 @@ const ConversationListScreen = (): React.JSX.Element => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#0F172A', // Fondo oscuro navy/azul
   },
   header: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: '#1E293B',
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
-  headerButton: {
-    marginLeft: 15,
+  searchIcon: {
+    marginRight: 8,
   },
-  headerButtonText: {
+  searchInput: {
+    flex: 1,
     fontSize: 16,
-    color: '#2E7D32',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   listContent: {
-    padding: 10,
+    paddingBottom: 100, // Espacio para el botón flotante
   },
   conversationItem: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 15,
+    padding: 16,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    alignItems: 'center',
   },
   avatar: {
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
-    backgroundColor: '#2E7D32',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginRight: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  onlineStatus: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   conversationContent: {
     flex: 1,
-    justifyContent: 'center',
   },
   conversationHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 6,
   },
   conversationName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  conversationTime: {
-    fontSize: 12,
-    color: '#999',
-  },
-  conversationFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  conversationLastMessage: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
-    marginRight: 10,
-  },
-  messageUnread: {
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginRight: 8,
   },
   unreadBadge: {
-    backgroundColor: '#2E7D32',
+    backgroundColor: '#8B5CF6',
     borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
   },
   unreadText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: 'bold',
+  },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lockIcon: {
+    marginRight: 6,
+  },
+  conversationLastMessage: {
+    fontSize: 15,
+    color: '#64748B',
+    flex: 1,
+  },
+  conversationTime: {
+    fontSize: 13,
+    color: '#64748B',
+    marginLeft: 8,
   },
   emptyContainer: {
     flex: 1,
@@ -316,12 +330,31 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#999',
+    color: '#64748B',
+    marginTop: 16,
     marginBottom: 10,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#CCC',
+    color: '#475569',
+  },
+  panicButton: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    borderRadius: 32,
+    elevation: 8,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  panicGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

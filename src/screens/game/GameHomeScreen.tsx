@@ -14,7 +14,9 @@ import {
   Platform,
   Modal,
   Animated,
+  StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameStackParamList } from '../../types';
@@ -23,7 +25,10 @@ import { Colors, Spacing, Typography, BorderRadius } from '../../theme';
 import { Icon, StatCard, GradientButton, ProgressBar } from '../../components';
 import GameSelectorScreen from './GameSelectorScreen';
 
-type NavigationProps = NativeStackNavigationProp<GameStackParamList, 'GameHome'>;
+type NavigationProps = NativeStackNavigationProp<
+  GameStackParamList,
+  'GameHome'
+>;
 
 const GameHomeScreen = (): React.JSX.Element => {
   const navigation = useNavigation<NavigationProps>();
@@ -124,122 +129,146 @@ const GameHomeScreen = (): React.JSX.Element => {
    */
   const getLevelProgress = (): number => {
     const experiencePerLevel = 100;
-    return (experience % experiencePerLevel);
+    return experience % experiencePerLevel;
   };
 
   const currentLevelProgress = getLevelProgress();
   const maxProgress = 100;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header del Juego */}
-        <Animated.View style={[styles.header, headerAnimatedStyle]}>
-          <View style={styles.headerTop}>
-            <View style={styles.avatarContainer}>
-              <Icon name="person-circle" size="xl" color={Colors.primary} />
+    <LinearGradient
+      colors={['#4A148C', '#6A1B9A', '#7B1FA2']}
+      style={styles.container}
+    >
+      <StatusBar barStyle="light-content" backgroundColor="#4A148C" />
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header del Juego */}
+          <Animated.View style={[styles.header, headerAnimatedStyle]}>
+            <View style={styles.avatarCircle}>
+              <Icon name="person" size={32} color={Colors.surface} />
             </View>
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.title}>Pocket Quest 3</Text>
-              <Text style={styles.subtitle}>Aventura Casual</Text>
+            <View style={styles.headerCenter}>
+              <Text style={styles.title}>Pocket Quest</Text>
+              <Text style={styles.subtitle}>Aventura casual</Text>
             </View>
-          </View>
-        </Animated.View>
+            <TouchableOpacity style={styles.notificationBadge}>
+              <Icon name="notifications" size={24} color={Colors.surface} />
+              <View style={styles.badgeDot} />
+            </TouchableOpacity>
+          </Animated.View>
 
-        {/* Panel de Estadísticas */}
-        <Animated.View style={[statsAnimatedStyle, styles.statsSection]}>
-          <View style={styles.statsRow}>
-            <StatCard
-              icon="star"
-              value={level}
-              label="Nivel"
-              variant="level"
-              size="medium"
-              style={styles.statCard}
-            />
-            <StatCard
-              icon="heart"
-              value={lives}
-              label="Vidas"
-              variant="lives"
-              size="medium"
-              style={styles.statCard}
-            />
-            <StatCard
-              icon="cash"
-              value={coins}
-              label="Monedas"
-              variant="coins"
-              size="medium"
-              style={styles.statCard}
-            />
-          </View>
-
-          {/* Barra de Experiencia */}
-          <View style={styles.experienceContainer}>
-            <View style={styles.experienceHeader}>
-              <Text style={styles.experienceLabel}>Experiencia</Text>
-              <Text style={styles.experienceValue}>{currentLevelProgress}/{maxProgress} XP</Text>
+          {/* Panel de Estadísticas */}
+          <Animated.View style={[statsAnimatedStyle, styles.statsSection]}>
+            <View style={styles.statsRow}>
+              <View style={styles.statCardCustom}>
+                <Icon name="flash" size={28} color="#FFB300" />
+                <Text style={styles.statValue}>{level}</Text>
+                <Text style={styles.statLabel}>Nivel</Text>
+              </View>
+              <View
+                style={[styles.statCardCustom, { backgroundColor: '#C2185B' }]}
+              >
+                <Icon name="heart" size={28} color="#FFFFFF" />
+                <Text style={styles.statValue}>{lives}</Text>
+                <Text style={styles.statLabel}>Vidas</Text>
+              </View>
+              <View
+                style={[styles.statCardCustom, { backgroundColor: '#D84315' }]}
+              >
+                <Icon name="logo-bitcoin" size={28} color="#FFD700" />
+                <Text style={styles.statValue}>{coins.toLocaleString()}</Text>
+                <Text style={styles.statLabel}>Monedas</Text>
+              </View>
             </View>
-            <ProgressBar
-              progress={currentLevelProgress}
-              color={Colors.gradientSuccess}
-              height={12}
-              animated
-            />
-          </View>
-        </Animated.View>
 
-        {/* Botones de Acción */}
-        <Animated.View style={[buttonsAnimatedStyle, styles.actionsSection]}>
-          <GradientButton
-            title="JUGAR"
-            onPress={handlePlay}
-            variant="success"
-            icon="game-controller"
-            iconSize="lg"
-            fullWidth
-            size="large"
-            style={styles.actionButton}
-          />
+            {/* Barra de Experiencia */}
+            <View style={styles.experienceContainer}>
+              <View style={styles.experienceHeader}>
+                <Text style={styles.experienceLabel}>Experiencia</Text>
+                <Text style={styles.experienceValue}>
+                  {currentLevelProgress} / {maxProgress} XP
+                </Text>
+              </View>
+              <View style={styles.progressBarContainer}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${(currentLevelProgress / maxProgress) * 100}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          </Animated.View>
 
-          <GradientButton
-            title="TIENDA"
-            onPress={handleShop}
-            variant="secondary"
-            icon="cart"
-            iconSize="lg"
-            fullWidth
-            size="large"
-            style={styles.actionButton}
-          />
+          {/* Botón Principal JUGAR */}
+          <Animated.View
+            style={[buttonsAnimatedStyle, styles.playButtonSection]}
+          >
+            <TouchableOpacity
+              style={styles.playButton}
+              onPress={handlePlay}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.playButtonText}>JUGAR</Text>
+            </TouchableOpacity>
+          </Animated.View>
 
-          <GradientButton
-            title="CONFIGURACIÓN"
-            onPress={handleSettings}
-            variant="primary"
-            icon="settings"
-            iconSize="lg"
-            fullWidth
-            size="large"
-            style={styles.actionButton}
-          />
-        </Animated.View>
+          {/* Botones Secundarios */}
+          <Animated.View
+            style={[buttonsAnimatedStyle, styles.secondaryButtons]}
+          >
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleShop}
+            >
+              <Icon name="cart" size={24} color={Colors.surface} />
+              <Text style={styles.secondaryButtonText}>Tienda</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleSettings}
+            >
+              <Icon name="settings" size={24} color={Colors.surface} />
+              <Text style={styles.secondaryButtonText}>Configuración</Text>
+            </TouchableOpacity>
+          </Animated.View>
 
-        {/* Información Adicional */}
-        <Animated.View style={[buttonsAnimatedStyle, styles.infoContainer]}>
-          <Icon name="information-circle" size="md" color={Colors.primary} style={styles.infoIcon} />
-          <Text style={styles.infoText}>
-            ¡Completa misiones para ganar experiencia y monedas!
-          </Text>
-          <Text style={styles.infoSubtext}>
-            Nivel actual: {level}
-          </Text>
-        </Animated.View>
-      </ScrollView>
+          {/* Notificaciones / Logros */}
+          <Animated.View style={[buttonsAnimatedStyle, styles.achievements]}>
+            <View style={styles.achievementCard}>
+              <View style={styles.achievementIcon}>
+                <Icon name="trophy" size={28} color="#FFB300" />
+              </View>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementTitle}>
+                  ¡Nuevo logro desbloqueado!
+                </Text>
+                <Text style={styles.achievementDescription}>
+                  Has completado 50 niveles. Sigue así.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.achievementCard}>
+              <View style={styles.achievementIcon}>
+                <Icon name="gift" size={28} color="#00BCD4" />
+              </View>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementTitle}>
+                  Recompensa diaria disponible
+                </Text>
+                <Text style={styles.achievementDescription}>
+                  Inicia sesión mañana para obtener más monedas.
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
 
       {/* Modal de selección de juegos */}
       <Modal
@@ -250,112 +279,218 @@ const GameHomeScreen = (): React.JSX.Element => {
       >
         <GameSelectorScreen closeModal={() => setShowGameSelector(false)} />
       </Modal>
-    </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
-  scrollContent: {
-    padding: Spacing.md,
-  },
-  header: {
-    marginBottom: Spacing.lg,
-    padding: Spacing.md,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    marginRight: Spacing.md,
-  },
-  headerTextContainer: {
+  safeArea: {
     flex: 1,
   },
+  scrollContent: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xl,
+    paddingTop: Spacing.sm,
+  },
+  avatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    marginLeft: Spacing.md,
+  },
   title: {
-    ...Typography.heading.large,
-    color: Colors.primary,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.surface,
   },
   subtitle: {
-    ...Typography.body.regular,
-    color: Colors.textSecondary,
-    marginTop: 4,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 2,
+  },
+  notificationBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badgeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF5252',
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    borderWidth: 2,
+    borderColor: '#4A148C',
   },
   statsSection: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+    gap: Spacing.md,
   },
-  statCard: {
+  statCardCustom: {
     flex: 1,
-  },
-  experienceContainer: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    backgroundColor: '#5E35B1',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    alignItems: 'center',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 3,
+        elevation: 6,
       },
     }),
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.surface,
+    marginTop: Spacing.sm,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 4,
+  },
+  experienceContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
   },
   experienceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: Spacing.sm,
   },
   experienceLabel: {
-    ...Typography.label.large,
-    color: Colors.text,
+    fontSize: 14,
     fontWeight: '600',
+    color: Colors.surface,
   },
   experienceValue: {
-    ...Typography.label.regular,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  actionsSection: {
-    gap: Spacing.md,
+  progressBarContainer: {
+    height: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#26C6DA',
+    borderRadius: 5,
+  },
+  playButtonSection: {
     marginBottom: Spacing.lg,
   },
-  actionButton: {
-    width: '100%',
+  playButton: {
+    backgroundColor: '#26C6DA',
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.lg + 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#26C6DA',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  infoContainer: {
-    backgroundColor: Colors.infoLight,
+  playButtonText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.surface,
+    letterSpacing: 1,
+  },
+  secondaryButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.surface,
+  },
+  achievements: {
+    gap: Spacing.md,
+  },
+  achievementCard: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.info,
+    alignItems: 'center',
   },
-  infoIcon: {
-    marginBottom: Spacing.sm,
+  achievementIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
   },
-  infoText: {
-    ...Typography.body.regular,
-    color: Colors.infoDark,
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
+  achievementContent: {
+    flex: 1,
   },
-  infoSubtext: {
-    ...Typography.body.small,
-    color: Colors.info,
-    textAlign: 'center',
+  achievementTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.surface,
+    marginBottom: 4,
+  },
+  achievementDescription: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+    lineHeight: 18,
   },
 });
 

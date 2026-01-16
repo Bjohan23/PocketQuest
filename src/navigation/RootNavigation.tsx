@@ -22,14 +22,24 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * Controla qué modo está activo basándose en el estado global
  */
 const RootNavigation = (): React.JSX.Element => {
-  const { currentMode, isAuthenticated, canAccessCommunication } = useAppStore();
+  const {
+    currentMode,
+    isAuthenticated,
+    canAccessCommunication,
+    checkAuthStatus,
+  } = useAppStore();
+
+  // Verificar estado de autenticación al iniciar
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
 
   /**
    * Efecto para simular notificaciones del juego
    * Se ejecuta periódicamente para mostrar notificaciones genéricas
    */
   useEffect(() => {
-    if (currentMode === 'game') {
+    if (currentMode === 'game' && !isAuthenticated) {
       const notificationInterval = setInterval(() => {
         const { addNotification } = useAppStore.getState();
         const notifications = [
@@ -58,25 +68,28 @@ const RootNavigation = (): React.JSX.Element => {
       return () => clearInterval(notificationInterval);
     }
     return undefined;
-  }, [currentMode]);
+  }, [currentMode, isAuthenticated]);
 
   return (
     <Stack.Navigator
-      initialRouteName="GameStack"
+      initialRouteName={isAuthenticated ? 'CommunicationStack' : 'GameStack'}
       screenOptions={{
         headerShown: false,
         animation: 'fade',
       }}
     >
-      {/* Modo Juego - Siempre accesible */}
-      <Stack.Screen name="GameStack" component={GameNavigation} />
-
-      {/* Pantalla de Acceso - Puente entre modos */}
-      <Stack.Screen name="Access" component={AccessScreen} />
-
-      {/* Modo Comunicación - Requiere autenticación */}
-      {isAuthenticated && canAccessCommunication && (
-        <Stack.Screen name="CommunicationStack" component={CommunicationNavigation} />
+      {/* Si está autenticado, mostrar solo Comunicación */}
+      {isAuthenticated && canAccessCommunication ? (
+        <Stack.Screen
+          name="CommunicationStack"
+          component={CommunicationNavigation}
+        />
+      ) : (
+        <>
+          {/* Si NO está autenticado, mostrar solo Juego */}
+          <Stack.Screen name="GameStack" component={GameNavigation} />
+          <Stack.Screen name="Access" component={AccessScreen} />
+        </>
       )}
     </Stack.Navigator>
   );
