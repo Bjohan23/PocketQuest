@@ -17,6 +17,7 @@ import {
 import { authService, LoginResponse } from '../services/authService';
 import { chatService, Chat, Message } from '../services/chatService';
 import { messageService } from '../services/messageService';
+import { webSocketService } from '../services/webSocketService';
 
 // ============================
 // STORE DE JUEGO
@@ -76,6 +77,8 @@ interface CommunicationStore {
   activeConversationId: string | null;
   temporaryMessagesEnabled: boolean;
   temporaryDuration: number;
+  typingUsers: { [chatId: string]: { [userId: string]: boolean } };
+  onlineUsers: { [userId: string]: boolean };
 
   // Acciones de comunicación
   setConversations: (conversations: Conversation[]) => void;
@@ -87,6 +90,7 @@ interface CommunicationStore {
     content: string,
     isFromUser: boolean,
   ) => void;
+  addMessageToChat: (chatId: string, message: Message) => void;
   updateConversationSettings: (
     temporaryEnabled: boolean,
     duration: number,
@@ -95,6 +99,9 @@ interface CommunicationStore {
   resetCommunication: () => void;
   loadChats: () => Promise<void>;
   loadMessages: (chatId: string) => Promise<void>;
+  setUserTyping: (chatId: string, userId: string, isTyping: boolean) => void;
+  setUserOnline: (userId: string, isOnline: boolean) => void;
+  setupWebSocketListeners: () => void;
 }
 
 const initialCommunicationState = {
@@ -104,6 +111,8 @@ const initialCommunicationState = {
   activeConversationId: null,
   temporaryMessagesEnabled: false,
   temporaryDuration: APP_CONFIG.DEFAULT_TEMPORARY_DURATION,
+  typingUsers: {},
+  onlineUsers: {},
 };
 
 // ============================
@@ -213,6 +222,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
         currentMode: 'communication',
       });
 
+      // Conectar WebSocket
+      try {
+        await webSocketService.connect(response.accessToken);
+        get().setupWebSocketListeners();
+        console.log('✅ WebSocket conectado después del login');
+      } catch (error) {
+        console.error('❌ Error al conectar WebSocket:', error);
+      }
+
       // Cargar chats al autenticarse
       await get().loadChats();
 
@@ -224,6 +242,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   logout: async () => {
+    // Desconectar WebSocket
+    webSocketService.disconnect();
+
     await authService.logout();
     set({
       ...initialAuthState,
@@ -231,6 +252,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       user: null,
       chats: [],
       messages: {},
+      typingUsers: {},
+      onlineUsers: {},
       currentMode: 'game',
     });
   },
@@ -248,6 +271,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
         user,
         canAccessCommunication: true,
       });
+
+      // Conectar WebSocket si hay token
+      try {
+        await webSocketService.connect(token!);
+        get().setupWebSocketListeners();
+      } catch (error) {
+        console.error('❌ Error al conectar WebSocket:', error);
+      }
+
       await get().loadChats();
     }
   },
@@ -289,6 +321,68 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (error) {
       console.error('Error cargando mensajes:', error);
     }
+  },
+
+  addMessageToChat: (chatId: string, message: Message) =>
+    set(state => ({
+      messages: {
+        ...state.messages,
+        [chatId]: [...(state.messages[chatId] || []), message],
+      },
+    })),
+
+  setUserTyping: (chatId: string, userId: string, isTyping: boolean) =>
+    set(state => ({
+      typingUsers: {
+        ...state.typingUsers,
+        [chatId]: {
+          ...(state.typingUsers[chatId] || {}),
+          [userId]: isTyping,
+        },
+      },
+    })),
+
+  setUserOnline: (userId: string, isOnline: boolean) =>
+    set(state => ({
+      onlineUsers: {
+        ...state.onlineUsers,
+        [userId]: isOnline,
+      },
+    })),
+
+  setupWebSocketListeners: () => {
+    // Mensaje recibido
+    webSocketService.on('message_received', (message: any) => {
+      console.log('📩 Nuevo mensaje recibido en store:', message.id);
+      get().addMessageToChat(message.chatId, message);
+    });
+
+    // Mensaje enviado (confirmación)
+    webSocketService.on('message_sent', (message: any) => {
+      console.log('✅ Mensaje enviado confirmado en store:', message.id);
+      // Actualizar estado del mensaje a "enviado"
+    });
+
+    // Confirmación de entrega
+    webSocketService.on('delivery_confirmation', (data: any) => {
+      console.log('✓✓ Mensaje entregado:', data.messageId);
+      // Actualizar estado del mensaje a "entregado"
+    });
+
+    // Usuario escribiendo
+    webSocketService.on('user_typing', (data: any) => {
+      get().setUserTyping(data.chatId, data.userId, data.isTyping);
+    });
+
+    // Usuario online
+    webSocketService.on('user_online', (data: any) => {
+      get().setUserOnline(data.userId, true);
+    });
+
+    // Usuario offline
+    webSocketService.on('user_offline', (data: any) => {
+      get().setUserOnline(data.userId, false);
+    });
   },
 
   setActiveConversation: (conversationId: string | null) =>

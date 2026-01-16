@@ -21,7 +21,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CommunicationStackParamList } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
-import { messageService } from '../../services';
+import { webSocketService } from '../../services/webSocketService';
 
 type NavigationProps = NativeStackNavigationProp<
   CommunicationStackParamList,
@@ -105,16 +105,34 @@ const ConversationScreen = (): React.JSX.Element => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Obtener datos del store
-  const { chats, messages, user, loadMessages } = useAppStore();
+  const { chats, messages, user, loadMessages, typingUsers } = useAppStore();
 
   // Encontrar el chat actual
   const currentChat = chats.find(c => c.id === chatId);
   const chatMessages = messages[chatId] || [];
 
+  // Verificar si el otro usuario está escribiendo
+  const otherUserId = currentChat?.participant?.id;
+  const isOtherUserTyping = otherUserId && typingUsers[chatId]?.[otherUserId];
+
   useEffect(() => {
     loadChatMessages();
+
+    // Unirse a la sala del chat
+    webSocketService.joinChat(chatId);
+
+    return () => {
+      // Salir de la sala al desmontar
+      webSocketService.leaveChat(chatId);
+
+      // Cancelar timer de typing
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
+    };
   }, [chatId]);
 
   const loadChatMessages = async () => {
@@ -129,7 +147,7 @@ const ConversationScreen = (): React.JSX.Element => {
   };
 
   /**
-   * Envía un nuevo mensaje cifrado
+   * Envía un nuevo mensaje cifrado por WebSocket
    */
   const handleSendMessage = async () => {
     if (!messageText.trim() || !currentChat || !user) {
@@ -147,20 +165,20 @@ const ConversationScreen = (): React.JSX.Element => {
         return;
       }
 
-      // Enviar mensaje cifrado
-      await messageService.sendMessage({
+      // Enviar mensaje cifrado por WebSocket
+      await webSocketService.sendMessage({
         chatId,
         message: messageText,
         recipientPublicKey,
       });
 
-      console.log('✅ Mensaje cifrado enviado');
+      console.log('✅ Mensaje cifrado enviado por WebSocket');
 
       // Limpiar input
       setMessageText('');
 
-      // Recargar mensajes
-      await loadChatMessages();
+      // Detener indicador de escritura
+      webSocketService.sendTypingIndicator(chatId, false);
 
       // Scroll al final
       setTimeout(() => {
@@ -168,8 +186,33 @@ const ConversationScreen = (): React.JSX.Element => {
       }, 100);
     } catch (error) {
       console.error('❌ Error enviando mensaje:', error);
+      // TODO: Mostrar mensaje de error al usuario
     } finally {
       setSending(false);
+    }
+  };
+
+  /**
+   * Manejar cambios en el texto (con indicador de escritura)
+   */
+  const handleTextChange = (text: string) => {
+    setMessageText(text);
+
+    // Cancelar timer anterior
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+
+    // Enviar "está escribiendo"
+    if (text.trim()) {
+      webSocketService.sendTypingIndicator(chatId, true);
+
+      // Después de 2 segundos sin escribir, enviar "ya no escribe"
+      typingTimerRef.current = setTimeout(() => {
+        webSocketService.sendTypingIndicator(chatId, false);
+      }, 2000);
+    } else {
+      webSocketService.sendTypingIndicator(chatId, false);
     }
   };
 
@@ -262,38 +305,50 @@ const ConversationScreen = (): React.JSX.Element => {
 
         {/* Input de Mensaje */}
         <View style={styles.inputContainer}>
-          <Icon
-            name="lock"
-            size={18}
-            color="#10B981"
-            style={styles.lockInputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Mensaje cifrado..."
-            placeholderTextColor="#64748B"
-            value={messageText}
-            onChangeText={setMessageText}
-            multiline
-            maxLength={500}
-            editable={!sending}
-          />
+          {/* Indicador de "escribiendo..." */}
+          {isOtherUserTyping && (
+            <View style={styles.typingIndicator}>
+              <Icon name="pencil" size={14} color="#8B5CF6" />
+              <Text style={styles.typingText}>
+                {currentChat.participant?.name || 'Usuario'} está escribiendo...
+              </Text>
+            </View>
+          )}
 
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!messageText.trim() || sending) && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSendMessage}
-            disabled={!messageText.trim() || sending}
-            activeOpacity={0.8}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Icon name="send" size={20} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
+          <View style={styles.inputRow}>
+            <Icon
+              name="lock"
+              size={18}
+              color="#10B981"
+              style={styles.lockInputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Mensaje cifrado..."
+              placeholderTextColor="#64748B"
+              value={messageText}
+              onChangeText={handleTextChange}
+              multiline
+              maxLength={500}
+              editable={!sending}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                (!messageText.trim() || sending) && styles.sendButtonDisabled,
+              ]}
+              onPress={handleSendMessage}
+              disabled={!messageText.trim() || sending}
+              activeOpacity={0.8}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Icon name="send" size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -401,12 +456,26 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
     backgroundColor: '#1E293B',
     borderTopWidth: 1,
     borderTopColor: '#334155',
+  },
+  typingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  typingText: {
+    fontSize: 13,
+    color: '#8B5CF6',
+    marginLeft: 6,
+    fontStyle: 'italic',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
   },
   lockInputIcon: {
     marginRight: 8,

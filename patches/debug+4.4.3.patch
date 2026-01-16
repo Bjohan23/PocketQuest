@@ -1,0 +1,13 @@
+diff --git a/node_modules/debug/src/browser.js b/node_modules/debug/src/browser.js
+index 5993451..cf4b6aa 100644
+--- a/node_modules/debug/src/browser.js
++++ b/node_modules/debug/src/browser.js
+@@ -255,7 +255,7 @@ function localstorage() {
+ 	}
+ }
+ 
+-module.exports = require('./common')(exports);
++module.exports = require('debug/src/common')(exports);
+ 
+ const {formatters} = module.exports;
+ 
