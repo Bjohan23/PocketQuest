@@ -91,6 +91,7 @@ interface CommunicationStore {
     isFromUser: boolean,
   ) => void;
   addMessageToChat: (chatId: string, message: Message) => void;
+  replaceTemporaryMessage: (chatId: string, realMessage: Message) => void;
   updateConversationSettings: (
     temporaryEnabled: boolean,
     duration: number,
@@ -245,6 +246,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // Desconectar WebSocket
     webSocketService.disconnect();
 
+    // Limpiar caché de mensajes enviados
+    await messageService.clearSentMessagesCache();
+
     await authService.logout();
     set({
       ...initialAuthState,
@@ -331,6 +335,56 @@ export const useAppStore = create<AppStore>((set, get) => ({
       },
     })),
 
+  replaceTemporaryMessage: (chatId: string, realMessage: Message) =>
+    set(state => {
+      const chatMessages = state.messages[chatId] || [];
+
+      console.log(`🔍 Buscando mensaje temporal para reemplazar. ChatId: ${chatId}, SenderId: ${realMessage.senderId}`);
+      console.log(`📊 Mensajes actuales en el chat: ${chatMessages.length}`);
+      console.log(`📊 Mensajes temporales: ${chatMessages.filter(m => m.isTemporary).length}`);
+
+      // Buscar el mensaje temporal más reciente del mismo usuario
+      const tempMessageIndex = chatMessages.findIndex(
+        msg => msg.isTemporary && msg.senderId === realMessage.senderId
+      );
+
+      if (tempMessageIndex !== -1) {
+        // Preservar el plainText del mensaje temporal
+        const tempMessage = chatMessages[tempMessageIndex];
+        const updatedMessage = {
+          ...realMessage,
+          plainText: tempMessage.plainText, // Preservar texto plano
+          decryptedText: tempMessage.plainText, // Usar para mostrar
+          isTemporary: false,
+        };
+
+        // Reemplazar mensaje temporal con el real
+        const updatedMessages = [...chatMessages];
+        updatedMessages[tempMessageIndex] = updatedMessage;
+
+        console.log(`🔄 Mensaje temporal reemplazado con mensaje real: ${realMessage.id}`);
+        console.log(`📝 Texto preservado: "${updatedMessage.decryptedText}"`);
+
+        return {
+          messages: {
+            ...state.messages,
+            [chatId]: updatedMessages,
+          },
+        };
+      } else {
+        // Si no hay mensaje temporal, agregar como nuevo
+        console.log(`⚠️ No se encontró mensaje temporal para senderId: ${realMessage.senderId}`);
+        console.log(`📋 IDs de remitentes actuales: ${chatMessages.map(m => `${m.senderId.substring(0, 8)}... (temp: ${m.isTemporary})`).join(', ')}`);
+        console.log(`➕ Agregando mensaje: ${realMessage.id}`);
+        return {
+          messages: {
+            ...state.messages,
+            [chatId]: [...chatMessages, realMessage],
+          },
+        };
+      }
+    }),
+
   setUserTyping: (chatId: string, userId: string, isTyping: boolean) =>
     set(state => ({
       typingUsers: {
@@ -351,16 +405,91 @@ export const useAppStore = create<AppStore>((set, get) => ({
     })),
 
   setupWebSocketListeners: () => {
-    // Mensaje recibido
-    webSocketService.on('message_received', (message: any) => {
+    // Mensaje recibido (tanto de otros usuarios como confirmación de propios)
+    webSocketService.on('message_received', async (message: any) => {
       console.log('📩 Nuevo mensaje recibido en store:', message.id);
-      get().addMessageToChat(message.chatId, message);
+      console.log('📦 Mensaje completo:', JSON.stringify(message, null, 2));
+
+      // Validación defensiva: verificar que tenemos user
+      const state = get();
+      const myUserId = state.user?.id;
+
+      console.log('👤 Mi userId:', myUserId);
+      console.log('👤 Mensaje senderId:', message.senderId);
+
+      if (!myUserId) {
+        console.warn('⚠️ No hay usuario autenticado, ignorando mensaje');
+        return;
+      }
+
+      // Si es nuestro propio mensaje, reemplazar el temporal con confirmación del servidor
+      if (message.senderId === myUserId) {
+        console.log('✅ Mensaje propio confirmado por el servidor, reemplazando temporal');
+
+        // Guardar en caché el texto plano del mensaje temporal
+        const chatMessages = state.messages[message.chatId] || [];
+        const tempMessage = chatMessages.find(m => m.isTemporary && m.senderId === myUserId);
+        if (tempMessage && tempMessage.plainText) {
+          // Guardar en caché para poder verlo después
+          console.log(`💾 Guardando mensaje en caché: "${tempMessage.plainText}"`);
+          const { messageService } = require('../services/messageService');
+          messageService.cacheSentMessage(message.id, tempMessage.plainText);
+        } else {
+          console.warn('⚠️ No se encontró mensaje temporal con plainText para cachear');
+        }
+
+        state.replaceTemporaryMessage(message.chatId, message);
+        return;
+      }
+
+      console.log('✅ Mensaje es de otro usuario, procesando...');
+
+      // Verificar si el mensaje ya existe en el store (evitar duplicados)
+      const existingMessages = state.messages[message.chatId] || [];
+      if (existingMessages.some(m => m.id === message.id)) {
+        console.log('ℹ️ Mensaje ya existe en el store, ignorando duplicado');
+        return;
+      }
+
+      // Descifrar el mensaje antes de agregarlo a la UI
+      try {
+        const { cryptoService } = await import('../services/cryptoService');
+        const decryptedText = await cryptoService.decryptMessage(message.cipherText);
+
+        console.log('🔓 Mensaje descifrado en tiempo real');
+
+        state.addMessageToChat(message.chatId, {
+          ...message,
+          decryptedText,
+        });
+      } catch (error) {
+        console.error('❌ Error descifrando mensaje en tiempo real:', error);
+        // Si falla el descifrado, agregar con placeholder
+        state.addMessageToChat(message.chatId, {
+          ...message,
+          decryptedText: '[Mensaje cifrado - Error al descifrar]',
+        });
+      }
     });
 
-    // Mensaje enviado (confirmación)
+    // Mensaje enviado (confirmación del servidor)
+    // NOTA: Este evento es redundante ahora que message_received también llega al remitente
     webSocketService.on('message_sent', (message: any) => {
-      console.log('✅ Mensaje enviado confirmado en store:', message.id);
-      // Actualizar estado del mensaje a "enviado"
+      console.log('✅ Mensaje enviado confirmado (message_sent):', message.id);
+
+      // Verificar si el mensaje ya existe (ya procesado por message_received)
+      const state = get();
+      const existingMessages = state.messages[message.chatId] || [];
+      const messageExists = existingMessages.some(m => m.id === message.id);
+
+      if (messageExists) {
+        console.log('ℹ️ Mensaje ya procesado por message_received, ignorando message_sent');
+        return;
+      }
+
+      // Si no existe, reemplazar mensaje temporal (fallback)
+      console.log('⚠️ Mensaje no encontrado, procesando message_sent como fallback');
+      state.replaceTemporaryMessage(message.chatId, message);
     });
 
     // Confirmación de entrega

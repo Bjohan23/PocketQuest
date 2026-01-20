@@ -108,7 +108,7 @@ const ConversationScreen = (): React.JSX.Element => {
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Obtener datos del store
-  const { chats, messages, user, loadMessages, typingUsers } = useAppStore();
+  const { chats, messages, user, loadMessages, typingUsers, addMessageToChat } = useAppStore();
 
   // Encontrar el chat actual
   const currentChat = chats.find(c => c.id === chatId);
@@ -154,6 +154,9 @@ const ConversationScreen = (): React.JSX.Element => {
       return;
     }
 
+    // Guardar el texto del mensaje antes de limpiar el input
+    const plainTextMessage = messageText.trim();
+
     try {
       setSending(true);
 
@@ -172,17 +175,34 @@ const ConversationScreen = (): React.JSX.Element => {
 
       console.log('🔑 Clave pública del destinatario encontrada (primeros 50 chars):', recipientPublicKey.substring(0, 50));
 
+      // Crear mensaje temporal local para mostrar inmediatamente
+      const tempMessageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const tempMessage = {
+        id: tempMessageId,
+        chatId,
+        senderId: user.id,
+        cipherText: '', // Se llenará cuando llegue del servidor
+        plainText: plainTextMessage, // Guardamos el texto plano
+        decryptedText: plainTextMessage, // Para mostrar en la UI
+        createdAt: new Date().toISOString(),
+        isTemporary: true, // Marca como temporal
+      };
+
+      // Agregar mensaje temporal a la UI inmediatamente
+      console.log('📝 Agregando mensaje temporal a la UI:', tempMessageId);
+      addMessageToChat(chatId, tempMessage);
+
+      // Limpiar input antes de enviar
+      setMessageText('');
+
       // Enviar mensaje cifrado por WebSocket
       await webSocketService.sendMessage({
         chatId,
-        message: messageText,
+        message: plainTextMessage,
         recipientPublicKey,
       });
 
       console.log('✅ Mensaje cifrado enviado por WebSocket');
-
-      // Limpiar input
-      setMessageText('');
 
       // Detener indicador de escritura
       webSocketService.sendTypingIndicator(chatId, false);
@@ -194,6 +214,7 @@ const ConversationScreen = (): React.JSX.Element => {
     } catch (error) {
       console.error('❌ Error enviando mensaje:', error);
       // TODO: Mostrar mensaje de error al usuario
+      // TODO: Remover mensaje temporal si falla el envío
     } finally {
       setSending(false);
     }
@@ -244,7 +265,7 @@ const ConversationScreen = (): React.JSX.Element => {
    */
   React.useLayoutEffect(() => {
     navigation.setOptions({
-      title: currentChat?.participant?.name || 'Chat Seguro',
+      title: currentChat?.participant?.username || 'Chat Seguro',
       headerRight: () => (
         <TouchableOpacity
           onPress={() =>
@@ -317,7 +338,7 @@ const ConversationScreen = (): React.JSX.Element => {
             <View style={styles.typingIndicator}>
               <Icon name="pencil" size={14} color="#8B5CF6" />
               <Text style={styles.typingText}>
-                {currentChat.participant?.name || 'Usuario'} está escribiendo...
+                {currentChat.participant?.username || 'Usuario'} está escribiendo...
               </Text>
             </View>
           )}

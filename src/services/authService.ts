@@ -25,6 +25,7 @@ export interface LoginResponse {
   user: {
     id: string;
     identifier: string;
+    username: string;
     publicKey: string;
     privateKey: string;
     loginCode: string;
@@ -33,6 +34,7 @@ export interface LoginResponse {
 
 export interface RegisterParams {
   identifier: string;
+  username: string;
   publicKey: string;
 }
 

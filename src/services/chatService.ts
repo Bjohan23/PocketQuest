@@ -18,6 +18,7 @@ export interface CreateChatParams {
 export interface ChatParticipant {
   id: string;
   identifier: string;
+  username: string;
   name?: string;
   avatarUrl?: string;
   publicKey?: string;

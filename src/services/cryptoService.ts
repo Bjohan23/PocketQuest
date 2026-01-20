@@ -41,8 +41,15 @@ class CryptoService {
    */
   async encryptMessage(message: string, recipientPublicKey: string): Promise<string> {
     try {
+      console.log('🔒 Cifrando mensaje de longitud:', message.length);
+      console.log('🔑 Clave pública destinatario (primeros 100 chars):', recipientPublicKey.substring(0, 100));
+
       // Cifrar con RSA (la librería usa PKCS1 por defecto)
       const encrypted = await RSA.encrypt(message, recipientPublicKey);
+
+      console.log('✅ Mensaje cifrado, longitud:', encrypted.length);
+      console.log('🔒 Cifrado (primeros 100 chars):', encrypted.substring(0, 100));
+
       return encrypted;
     } catch (error) {
       console.error('❌ Error al cifrar mensaje:', error);
@@ -62,11 +69,19 @@ class CryptoService {
         throw new Error('Clave privada no encontrada. Relogin requerido.');
       }
 
+      console.log('🔐 Intentando descifrar mensaje...');
+      console.log('🔑 Clave privada (primeros 100 chars):', myPrivateKey.substring(0, 100));
+      console.log('🔒 CipherText (primeros 100 chars):', cipherText.substring(0, 100));
+      console.log('📏 Longitud del cipherText:', cipherText.length);
+
       // Descifrar con RSA
       const decrypted = await RSA.decrypt(cipherText, myPrivateKey);
+
+      console.log('✅ Mensaje descifrado exitosamente');
       return decrypted;
     } catch (error) {
       console.error('❌ Error al descifrar mensaje:', error);
+      console.error('❌ Error details:', JSON.stringify(error));
       throw new Error('Error al descifrar el mensaje');
     }
   }

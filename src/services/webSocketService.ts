@@ -121,31 +121,15 @@ class WebSocketService {
     });
 
     // Mensaje recibido
-    this.socket.on('message_received', async (data: MessageReceivedPayload) => {
+    this.socket.on('message_received', (data: MessageReceivedPayload) => {
       console.log('📩 Mensaje recibido:', data.id);
 
-      try {
-        // Descifrar mensaje
-        const decryptedText = await cryptoService.decryptMessage(
-          data.cipherText,
-        );
+      // No descifrar aquí - dejar que el store maneje el descifrado
+      // Esto permite mejor separación de responsabilidades
+      this.emitLocal('message_received', data);
 
-        const messageWithDecrypted = {
-          ...data,
-          decryptedText,
-        };
-
-        this.emitLocal('message_received', messageWithDecrypted);
-
-        // Enviar confirmación de entrega automáticamente
-        this.confirmDelivery(data.id);
-      } catch (error) {
-        console.error('❌ Error al descifrar mensaje:', error);
-        this.emitLocal('message_received', {
-          ...data,
-          decryptedText: '[Error al descifrar]',
-        });
-      }
+      // Enviar confirmación de entrega automáticamente
+      this.confirmDelivery(data.id);
     });
 
     // Mensaje enviado (confirmación)

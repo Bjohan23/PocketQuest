@@ -7,6 +7,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService, API_ENDPOINTS } from './apiService';
 import { cryptoService } from './cryptoService';
 
+// Clave para almacenamiento local de mensajes propios
+const SENT_MESSAGES_CACHE_KEY = 'sentMessagesCache';
+
 /**
  * Interfaces para mensajes
  */
@@ -16,11 +19,13 @@ export interface Message {
   senderId: string;
   cipherText: string;
   decryptedText?: string; // Texto descifrado (solo cliente)
+  plainText?: string; // Texto plano de mensajes propios (solo cliente)
   mediaId?: string;
   ttlHours?: number;
   createdAt: string;
   deliveredAt?: string;
   readAt?: string;
+  isTemporary?: boolean; // Marca mensajes temporales antes de confirmación del servidor
 }
 
 export interface SendMessageParams {
@@ -41,6 +46,35 @@ export interface GetMessagesParams {
  * Servicio de mensajes
  */
 class MessageService {
+  /**
+   * Guardar mensaje propio en caché local (público para uso en store)
+   */
+  async cacheSentMessage(messageId: string, plainText: string): Promise<void> {
+    try {
+      const cacheStr = await AsyncStorage.getItem(SENT_MESSAGES_CACHE_KEY);
+      const cache = cacheStr ? JSON.parse(cacheStr) : {};
+      cache[messageId] = plainText;
+      await AsyncStorage.setItem(SENT_MESSAGES_CACHE_KEY, JSON.stringify(cache));
+      console.log(`💾 Mensaje ${messageId} guardado en caché local`);
+    } catch (error) {
+      console.error('Error guardando mensaje en caché:', error);
+    }
+  }
+
+  /**
+   * Obtener mensaje propio de caché local
+   */
+  async getCachedSentMessage(messageId: string): Promise<string | null> {
+    try {
+      const cacheStr = await AsyncStorage.getItem(SENT_MESSAGES_CACHE_KEY);
+      const cache = cacheStr ? JSON.parse(cacheStr) : {};
+      return cache[messageId] || null;
+    } catch (error) {
+      console.error('Error obteniendo mensaje de caché:', error);
+      return null;
+    }
+  }
+
   /**
    * Enviar mensaje cifrado
    */
@@ -102,17 +136,27 @@ class MessageService {
 
       const decryptedMessages = await Promise.all(
         response.data.map(async msg => {
-          // Solo descifrar mensajes que NO envié yo
-          if (msg.senderId === myUserId) {
-            console.log(`📤 Mensaje ${msg.id} enviado por mí, no se descifra`);
-            return {
-              ...msg,
-              decryptedText: '[Mensaje enviado]', // Placeholder para mensajes propios
-            };
-          }
-
-          // Descifrar mensajes recibidos de otros
           try {
+            // Si el mensaje es mío, intentar obtenerlo del caché local
+            if (msg.senderId === myUserId) {
+              const cachedText = await this.getCachedSentMessage(msg.id);
+              if (cachedText) {
+                console.log(`📤 Mensaje ${msg.id} enviado por mí, recuperado de caché`);
+                return {
+                  ...msg,
+                  decryptedText: cachedText,
+                  plainText: cachedText,
+                };
+              }
+              // Si no está en caché, no podemos descifrarlo (está cifrado con clave del destinatario)
+              console.log(`⚠️ Mensaje ${msg.id} enviado por mí, NO está en caché (mensaje antiguo)`);
+              return {
+                ...msg,
+                decryptedText: msg.plainText || '[📤 Mensaje enviado]',
+              };
+            }
+
+            // Descifrar mensajes recibidos de otros usuarios
             console.log(`🔓 Descifrando mensaje ${msg.id} de ${msg.senderId}`);
             const decryptedText = await cryptoService.decryptMessage(
               msg.cipherText,
@@ -123,7 +167,6 @@ class MessageService {
             };
           } catch (error) {
             console.error(`❌ Error al descifrar mensaje ${msg.id}:`, error);
-            // Si no se puede descifrar, dejar el mensaje sin descifrar
             return {
               ...msg,
               decryptedText: '[Mensaje cifrado - Error al descifrar]',
@@ -153,6 +196,18 @@ class MessageService {
   async markAsRead(messageIds: string[]): Promise<void> {
     // Endpoint personalizado
     await apiService.post('/messages/read', { messageIds });
+  }
+
+  /**
+   * Limpiar caché de mensajes enviados (llamar en logout)
+   */
+  async clearSentMessagesCache(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(SENT_MESSAGES_CACHE_KEY);
+      console.log('🧹 Caché de mensajes enviados limpiada');
+    } catch (error) {
+      console.error('Error limpiando caché de mensajes:', error);
+    }
   }
 }
 

@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   TextInput,
-  Alert,
   Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -39,24 +38,11 @@ const ConversationListScreen = (): React.JSX.Element => {
     loadChats();
   }, []);
 
-  // Función del botón de pánico
-  const handlePanicButton = () => {
-    Alert.alert(
-      '⚠️ Salida de Emergencia',
-      '¿Volver al modo de juegos?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Salir',
-          style: 'destructive',
-          onPress: () => {
-            console.log('🚨 Botón de pánico activado');
-            logout();
-          },
-        },
-      ],
-      { cancelable: true },
-    );
+  // Función del botón de pánico (instantánea)
+  const handlePanicButton = async () => {
+    console.log('🚨 Botón de pánico activado - Cierre instantáneo');
+    // Llamar al logout que limpia claves E2EE y tokens
+    await logout();
   };
 
   // Obtener iniciales para avatares sin foto
@@ -115,7 +101,7 @@ const ConversationListScreen = (): React.JSX.Element => {
             end={{ x: 1, y: 1 }}
           >
             <Text style={styles.avatarText}>
-              {getInitials(item.participant?.name || 'U')}
+              {getInitials(item.participant?.username || 'U')}
             </Text>
           </LinearGradient>
         )}
@@ -123,7 +109,7 @@ const ConversationListScreen = (): React.JSX.Element => {
         <View style={styles.conversationContent}>
           <View style={styles.conversationHeader}>
             <Text style={styles.conversationName}>
-              {item.participant?.name || 'Usuario'}
+              {item.participant?.username || 'Usuario'}
             </Text>
             {item.unreadCount > 0 && (
               <View style={styles.unreadBadge}>
@@ -228,7 +214,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#0F172A', // Mismo color que el fondo para eliminar verde
   },
   headerTitle: {
     fontSize: 28,
@@ -240,10 +226,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#1E293B',
     marginHorizontal: 16,
+    marginTop: 16, // Espaciado superior para separar del header
     marginBottom: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 16, // Homologado con conversationItem
   },
   searchIcon: {
     marginRight: 8,
