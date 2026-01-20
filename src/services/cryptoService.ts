@@ -3,7 +3,7 @@
  *Implementa cifrado RSA con OAEP para mensajería segura
  */
 
-import forge from 'node-forge';
+import RSA from 'react-native-rsa-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface KeyPair {
@@ -18,59 +18,32 @@ class CryptoService {
   /**
    * Genera un nuevo par de claves RSA 2048-bit
    */
-  generateKeyPair(): KeyPair {
+  async generateKeyPair(): Promise<KeyPair> {
     console.log('🔑 Generando par de claves RSA...');
 
-    const keypair = forge.pki.rsa.generateKeyPair({ bits: 2048, workers: -1 });
-
-    const publicKeyPem = forge.pki.publicKeyToPem(keypair.publicKey);
-    const privateKeyPem = forge.pki.privateKeyToPem(keypair.privateKey);
-
-    // Convertir a Base64 (formato del backend)
-    const publicKeyBase64 = forge.util.encode64(publicKeyPem);
-    const privateKeyBase64 = forge.util.encode64(privateKeyPem);
-
-    console.log('✅ Claves generadas exitosamente');
-
-    return {
-      publicKey: publicKeyBase64,
-      privateKey: privateKeyBase64,
-    };
-  }
-
-  /**
-   * Convierte clave de Base64 a PEM
-   */
-  base64ToPem(base64Key: string): string {
     try {
-      return forge.util.decode64(base64Key);
+      const keys = await RSA.generateKeys(2048);
+
+      console.log('✅ Claves generadas exitosamente');
+
+      return {
+        publicKey: keys.public,
+        privateKey: keys.private,
+      };
     } catch (error) {
-      console.error('❌ Error al decodificar clave:', error);
-      throw new Error('Formato de clave inválido');
+      console.error('❌ Error generando claves:', error);
+      throw new Error('Error al generar claves RSA');
     }
   }
 
   /**
    * Cifra un mensaje con la clave pública del destinatario
    */
-  encryptMessage(message: string, recipientPublicKeyBase64: string): string {
+  async encryptMessage(message: string, recipientPublicKey: string): Promise<string> {
     try {
-      // Convertir publicKey del destinatario de Base64 a PEM
-      const recipientPublicKeyPem = this.base64ToPem(recipientPublicKeyBase64);
-
-      // Parsear clave pública
-      const publicKey = forge.pki.publicKeyFromPem(recipientPublicKeyPem);
-
-      // Cifrar con RSA-OAEP (SHA-256)
-      const encrypted = publicKey.encrypt(message, 'RSA-OAEP', {
-        md: forge.md.sha256.create(),
-        mgf1: {
-          md: forge.md.sha256.create(),
-        },
-      });
-
-      // Retornar en Base64
-      return forge.util.encode64(encrypted);
+      // Cifrar con RSA (la librería usa PKCS1 por defecto)
+      const encrypted = await RSA.encrypt(message, recipientPublicKey);
+      return encrypted;
     } catch (error) {
       console.error('❌ Error al cifrar mensaje:', error);
       throw new Error('Error al cifrar el mensaje');
@@ -80,32 +53,17 @@ class CryptoService {
   /**
    * Descifra un mensaje con mi clave privada
    */
-  async decryptMessage(cipherTextBase64: string): Promise<string> {
+  async decryptMessage(cipherText: string): Promise<string> {
     try {
       // Obtener mi clave privada del almacenamiento
-      const myPrivateKeyBase64 = await AsyncStorage.getItem('privateKey');
+      const myPrivateKey = await AsyncStorage.getItem('privateKey');
 
-      if (!myPrivateKeyBase64) {
+      if (!myPrivateKey) {
         throw new Error('Clave privada no encontrada. Relogin requerido.');
       }
 
-      // Convertir de Base64 a PEM
-      const myPrivateKeyPem = this.base64ToPem(myPrivateKeyBase64);
-
-      // Parsear clave privada
-      const privateKey = forge.pki.privateKeyFromPem(myPrivateKeyPem);
-
-      // Decodificar base64 del mensaje cifrado
-      const encrypted = forge.util.decode64(cipherTextBase64);
-
-      // Descifrar con RSA-OAEP
-      const decrypted = privateKey.decrypt(encrypted, 'RSA-OAEP', {
-        md: forge.md.sha256.create(),
-        mgf1: {
-          md: forge.md.sha256.create(),
-        },
-      });
-
+      // Descifrar con RSA
+      const decrypted = await RSA.decrypt(cipherText, myPrivateKey);
       return decrypted;
     } catch (error) {
       console.error('❌ Error al descifrar mensaje:', error);

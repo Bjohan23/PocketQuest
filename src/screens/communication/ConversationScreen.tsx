@@ -157,13 +157,20 @@ const ConversationScreen = (): React.JSX.Element => {
     try {
       setSending(true);
 
+      // Debug: ver estructura del chat
+      console.log('📋 Chat actual:', JSON.stringify(currentChat, null, 2));
+      console.log('👤 Participante:', currentChat.participant);
+
       // Obtener clave pública del destinatario
       const recipientPublicKey = currentChat.participant?.publicKey;
 
       if (!recipientPublicKey) {
-        console.error('No se encontró la clave pública del destinatario');
+        console.error('❌ No se encontró la clave pública del destinatario');
+        console.error('Chat completo:', currentChat);
         return;
       }
+
+      console.log('🔑 Clave pública del destinatario encontrada (primeros 50 chars):', recipientPublicKey.substring(0, 50));
 
       // Enviar mensaje cifrado por WebSocket
       await webSocketService.sendMessage({

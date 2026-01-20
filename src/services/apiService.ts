@@ -81,12 +81,24 @@ class ApiService {
    */
   async post<T>(url: string, data?: any): Promise<ApiResponse<T>> {
     try {
+      console.log('🌐 API POST Request:', {
+        url: `${this.client.defaults.baseURL}${url}`,
+        data,
+      });
       const response: AxiosResponse<T> = await this.client.post(url, data);
+      console.log('✅ API POST Response:', response.status, response.data);
       return {
         success: true,
         data: response.data,
       };
     } catch (error: any) {
+      console.error('❌ API POST Error:', {
+        url: `${this.client.defaults.baseURL}${url}`,
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config,
+      });
       return {
         success: false,
         error: error.response?.data?.message || error.message,

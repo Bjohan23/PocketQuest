@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Buffer } from 'buffer';
 import { apiService, API_ENDPOINTS } from './apiService';
 import { cryptoService } from './cryptoService';
 
@@ -25,6 +26,8 @@ export interface LoginResponse {
     id: string;
     identifier: string;
     publicKey: string;
+    privateKey: string;
+    loginCode: string;
   };
 }
 
@@ -49,15 +52,27 @@ class AuthService {
    */
   async loginWithCode(loginCode: string): Promise<LoginResponse> {
     try {
+      console.log('🔑 Intentando login con código:', loginCode);
       const response = await apiService.post<LoginResponse>(
         '/auth/login-code',
         { loginCode },
       );
 
+      console.log('📡 Respuesta del servidor:', response);
+
       if (response.success && response.data) {
-        // Generar par de claves RSA en el cliente (E2EE verdadero)
-        console.log('🔐 Generando claves E2EE localmente...');
-        const keyPair = cryptoService.generateKeyPair();
+        // Usar las claves del backend (por ahora)
+        // TODO: Implementar E2EE verdadero donde las claves se generan solo en registro
+        console.log('🔐 Almacenando claves del usuario...');
+
+        // Decodificar claves de Base64 a PEM
+        const publicKeyPem = Buffer.from(response.data.user.publicKey, 'base64').toString('utf-8');
+        const privateKeyPem = Buffer.from(response.data.user.privateKey, 'base64').toString('utf-8');
+
+        const keyPair = {
+          publicKey: publicKeyPem,
+          privateKey: privateKeyPem,
+        };
 
         // Almacenar claves de forma segura
         await cryptoService.storeKeyPair(keyPair);
@@ -74,8 +89,10 @@ class AuthService {
         return response.data;
       }
 
+      console.error('❌ Error en respuesta:', response.error);
       throw new Error(response.error || 'Código de promoción inválido');
     } catch (error: any) {
+      console.error('❌ Error completo en loginWithCode:', error);
       // Mensaje de error despistado
       throw new Error('Código de promoción inválido o expirado');
     }

@@ -3,6 +3,8 @@
  * Maneja la gestión de chats y conversaciones
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Buffer } from 'buffer';
 import { apiService, API_ENDPOINTS } from './apiService';
 
 /**
@@ -56,27 +58,71 @@ export interface BatchPresenceResponse {
  */
 class ChatService {
   /**
+   * Decodificar clave pública de Base64 a PEM
+   */
+  private decodePublicKey(base64Key: string): string {
+    try {
+      return Buffer.from(base64Key, 'base64').toString('utf-8');
+    } catch (error) {
+      console.error('Error decodificando clave pública:', error);
+      return base64Key; // Devolver original si falla
+    }
+  }
+
+  /**
    * Obtener todos los chats del usuario
    */
   async getChats(): Promise<Chat[]> {
     const response = await apiService.get<Chat[]>('/chats');
 
     if (response.success && response.data) {
-      // Procesar chats para extraer participante en chats 1-a-1
-      return response.data.map(chat => {
+      console.log('📥 Chats recibidos del backend:', JSON.stringify(response.data, null, 2));
+
+      // Obtener usuario actual para filtrar participantes
+      const currentUserStr = await AsyncStorage.getItem('user');
+      const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+      const myUserId = currentUser?.id;
+
+      console.log('👤 Mi usuario ID:', myUserId);
+
+      // Procesar chats para extraer participante en chats 1-a-1 y decodificar claves
+      const processedChats = response.data.map(chat => {
+        // Decodificar claves públicas de todos los participantes de Base64 a PEM
+        const participantsWithDecodedKeys = chat.participants.map(p => ({
+          ...p,
+          publicKey: this.decodePublicKey(p.publicKey),
+        }));
+
         if (
           !chat.isGroup &&
-          chat.participants &&
-          chat.participants.length > 0
+          participantsWithDecodedKeys &&
+          participantsWithDecodedKeys.length > 0
         ) {
-          // En un chat 1-a-1, el participante es el otro usuario (no nosotros)
+          console.log('👥 Participantes del chat:', participantsWithDecodedKeys);
+
+          // Filtrar para obtener el otro participante (no yo)
+          const otherParticipant = participantsWithDecodedKeys.find(
+            p => p.id !== myUserId
+          );
+
+          console.log('🎯 Participante seleccionado:', otherParticipant);
+          console.log('🔑 Clave pública decodificada (primeros 50 chars):', otherParticipant?.publicKey?.substring(0, 50));
+
           return {
             ...chat,
-            participant: chat.participants[0], // El backend ya filtra y devuelve solo el otro participante
+            participants: participantsWithDecodedKeys,
+            participant: otherParticipant,
           };
         }
-        return chat;
+
+        return {
+          ...chat,
+          participants: participantsWithDecodedKeys,
+        };
       });
+
+      console.log('✅ Chats procesados con claves decodificadas');
+      return processedChats;
     }
 
     throw new Error(response.error || 'Error al obtener chats');

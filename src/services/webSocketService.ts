@@ -71,6 +71,7 @@ class WebSocketService {
     this.accessToken = authToken;
 
     console.log('🔌 Conectando WebSocket a:', WS_URL);
+    console.log('🔑 Token (primeros 20 chars):', authToken.substring(0, 20));
 
     this.socket = io(WS_URL, {
       transports: ['websocket'], // Importante para móvil
@@ -228,7 +229,7 @@ class WebSocketService {
 
     try {
       // Cifrar mensaje
-      const cipherText = cryptoService.encryptMessage(
+      const cipherText = await cryptoService.encryptMessage(
         message,
         recipientPublicKey,
       );

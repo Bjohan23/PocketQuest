@@ -3,6 +3,7 @@
  * Maneja el envío y recepción de mensajes con cifrado E2EE
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService, API_ENDPOINTS } from './apiService';
 import { cryptoService } from './cryptoService';
 
@@ -49,7 +50,7 @@ class MessageService {
     try {
       // Cifrar mensaje con la clave pública del destinatario
       console.log('🔒 Cifrando mensaje...');
-      const cipherText = cryptoService.encryptMessage(
+      const cipherText = await cryptoService.encryptMessage(
         message,
         recipientPublicKey,
       );
@@ -91,12 +92,28 @@ class MessageService {
     const response = await apiService.get<Message[]>(endpoint);
 
     if (response.success && response.data) {
-      // Descifrar cada mensaje
+      // Obtener mi ID de usuario
+      const currentUserStr = await AsyncStorage.getItem('user');
+      const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+      const myUserId = currentUser?.id;
+
       console.log(`🔓 Descifrando ${response.data.length} mensajes...`);
+      console.log(`👤 Mi usuario ID: ${myUserId}`);
 
       const decryptedMessages = await Promise.all(
         response.data.map(async msg => {
+          // Solo descifrar mensajes que NO envié yo
+          if (msg.senderId === myUserId) {
+            console.log(`📤 Mensaje ${msg.id} enviado por mí, no se descifra`);
+            return {
+              ...msg,
+              decryptedText: '[Mensaje enviado]', // Placeholder para mensajes propios
+            };
+          }
+
+          // Descifrar mensajes recibidos de otros
           try {
+            console.log(`🔓 Descifrando mensaje ${msg.id} de ${msg.senderId}`);
             const decryptedText = await cryptoService.decryptMessage(
               msg.cipherText,
             );
