@@ -16,6 +16,14 @@ npm start
 
 # OR using Yarn
 yarn start
+
+# Backend - reiniciar si es necesario
+cd d:\PocketQuest\PocketQuestBackend
+npm run start:dev
+
+# Frontend - generar APK
+cd d:\PocketQuest\frontend\PocketQuest
+npx react-native run-android --variant=release
 ```
 
 ## Step 2: Build and run your app

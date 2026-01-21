@@ -65,6 +65,9 @@ yarn-error.log
 
 # testing
 /coverage
+keystore_base64.txt
+temp_base64.txt
+
 
 # Yarn
 .yarn/*

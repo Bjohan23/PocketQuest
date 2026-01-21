@@ -18,6 +18,7 @@ export interface Message {
   chatId: string;
   senderId: string;
   cipherText: string;
+  senderCipherText?: string; // Texto cifrado para el remitente (nueva funcionalidad)
   decryptedText?: string; // Texto descifrado (solo cliente)
   plainText?: string; // Texto plano de mensajes propios (solo cliente)
   mediaId?: string;
@@ -137,8 +138,9 @@ class MessageService {
       const decryptedMessages = await Promise.all(
         response.data.map(async msg => {
           try {
-            // Si el mensaje es mío, intentar obtenerlo del caché local
+            // Si el mensaje es mío, descifrarlo con senderCipherText
             if (msg.senderId === myUserId) {
+              // Primero intentar caché (más rápido)
               const cachedText = await this.getCachedSentMessage(msg.id);
               if (cachedText) {
                 console.log(`📤 Mensaje ${msg.id} enviado por mí, recuperado de caché`);
@@ -148,8 +150,22 @@ class MessageService {
                   plainText: cachedText,
                 };
               }
-              // Si no está en caché, no podemos descifrarlo (está cifrado con clave del destinatario)
-              console.log(`⚠️ Mensaje ${msg.id} enviado por mí, NO está en caché (mensaje antiguo)`);
+
+              // Si no está en caché pero tiene senderCipherText, descifrar
+              if (msg.senderCipherText) {
+                console.log(`🔓 Descifrando mi mensaje ${msg.id} con senderCipherText`);
+                const decryptedText = await cryptoService.decryptMessage(
+                  msg.senderCipherText,
+                );
+                return {
+                  ...msg,
+                  decryptedText,
+                  plainText: decryptedText,
+                };
+              }
+
+              // Si no hay senderCipherText (mensaje antiguo), no se puede descifrar
+              console.log(`⚠️ Mensaje ${msg.id} enviado por mí, sin senderCipherText (mensaje antiguo)`);
               return {
                 ...msg,
                 decryptedText: msg.plainText || '[📤 Mensaje enviado]',

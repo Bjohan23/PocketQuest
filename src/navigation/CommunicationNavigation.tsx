@@ -20,7 +20,7 @@ const CommunicationNavigation = (): React.JSX.Element => {
       initialRouteName="ConversationList"
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#2E7D32',
+          backgroundColor: '#1E293B', // Color oscuro consistente con el diseño
         },
         headerTintColor: '#FFFFFF',
         headerTitleStyle: {

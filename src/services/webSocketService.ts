@@ -13,6 +13,7 @@ interface MessageReceivedPayload {
   chatId: string;
   senderId: string;
   cipherText: string;
+  senderCipherText?: string;
   mediaId: string | null;
   ttlExpiresAt: string | null;
   delivered: boolean;
@@ -212,16 +213,31 @@ class WebSocketService {
     const { chatId, message, recipientPublicKey, mediaId, ttlHours } = params;
 
     try {
-      // Cifrar mensaje
+      // Cifrar mensaje para el destinatario
       const cipherText = await cryptoService.encryptMessage(
         message,
         recipientPublicKey,
       );
 
+      // Cifrar mensaje para mí mismo (para poder leerlo después)
+      const myPublicKey = await AsyncStorage.getItem('publicKey');
+      let senderCipherText: string | undefined = undefined;
+
+      if (myPublicKey) {
+        senderCipherText = await cryptoService.encryptMessage(
+          message,
+          myPublicKey,
+        );
+        console.log('🔐 Mensaje cifrado para remitente (dual encryption)');
+      } else {
+        console.warn('⚠️ No se encontró clave pública del remitente, usando solo cifrado simple');
+      }
+
       // Enviar por WebSocket
       this.socket.emit('send_message', {
         chatId,
         cipherText,
+        senderCipherText,
         mediaId: mediaId || null,
         ttlHours: ttlHours || null,
       });

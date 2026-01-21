@@ -1,0 +1,17 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build the Android application"
+  lane :beta do
+    # 1. Clean the project
+    gradle(task: "clean")
+
+    # 2. Build Release APK
+    # fastlane will automatically pick up signing config from environment variables
+    # if we configure build.gradle correctly.
+    gradle(
+      task: "assemble",
+      build_type: "Release"
+    )
+  end
+end

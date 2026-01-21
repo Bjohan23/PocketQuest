@@ -15,9 +15,10 @@ import {
   APP_CONFIG,
 } from '../types';
 import { authService, LoginResponse } from '../services/authService';
-import { chatService, Chat, Message } from '../services/chatService';
-import { messageService } from '../services/messageService';
+import { chatService, Chat } from '../services/chatService';
+import { messageService, Message } from '../services/messageService';
 import { webSocketService } from '../services/webSocketService';
+import { cryptoService } from '../services/cryptoService';
 
 // ============================
 // STORE DE JUEGO
@@ -246,8 +247,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // Desconectar WebSocket
     webSocketService.disconnect();
 
-    // Limpiar caché de mensajes enviados
-    await messageService.clearSentMessagesCache();
+    // NO limpiar caché de mensajes enviados para mantener acceso después del botón de pánico
+    // Con cifrado dual (senderCipherText), los mensajes se pueden recuperar siempre
+    // await messageService.clearSentMessagesCache();
 
     await authService.logout();
     set({
@@ -429,13 +431,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
         // Guardar en caché el texto plano del mensaje temporal
         const chatMessages = state.messages[message.chatId] || [];
         const tempMessage = chatMessages.find(m => m.isTemporary && m.senderId === myUserId);
-        if (tempMessage && tempMessage.plainText) {
+        if (tempMessage && (tempMessage as any).plainText) {
           // Guardar en caché para poder verlo después
-          console.log(`💾 Guardando mensaje en caché: "${tempMessage.plainText}"`);
-          const { messageService } = require('../services/messageService');
-          messageService.cacheSentMessage(message.id, tempMessage.plainText);
+          console.log(`💾 Guardando mensaje en caché: "${(tempMessage as any).plainText}"`);
+          await messageService.cacheSentMessage(message.id, (tempMessage as any).plainText);
+        } else if ((message as any).senderCipherText) {
+          // Si no hay mensaje temporal pero sí senderCipherText, descifrar y guardar
+          console.log('🔓 Descifrando senderCipherText del mensaje propio');
+          try {
+            const decryptedText = await cryptoService.decryptMessage((message as any).senderCipherText);
+            await messageService.cacheSentMessage(message.id, decryptedText);
+            console.log(`💾 Mensaje descifrado y guardado en caché: "${decryptedText}"`);
+          } catch (error) {
+            console.error('❌ Error descifrando senderCipherText:', error);
+          }
         } else {
-          console.warn('⚠️ No se encontró mensaje temporal con plainText para cachear');
+          console.warn('⚠️ No se encontró mensaje temporal ni senderCipherText');
         }
 
         state.replaceTemporaryMessage(message.chatId, message);
@@ -474,22 +485,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     // Mensaje enviado (confirmación del servidor)
     // NOTA: Este evento es redundante ahora que message_received también llega al remitente
+    // Lo ignoramos completamente para evitar duplicados
     webSocketService.on('message_sent', (message: any) => {
-      console.log('✅ Mensaje enviado confirmado (message_sent):', message.id);
-
-      // Verificar si el mensaje ya existe (ya procesado por message_received)
-      const state = get();
-      const existingMessages = state.messages[message.chatId] || [];
-      const messageExists = existingMessages.some(m => m.id === message.id);
-
-      if (messageExists) {
-        console.log('ℹ️ Mensaje ya procesado por message_received, ignorando message_sent');
-        return;
-      }
-
-      // Si no existe, reemplazar mensaje temporal (fallback)
-      console.log('⚠️ Mensaje no encontrado, procesando message_sent como fallback');
-      state.replaceTemporaryMessage(message.chatId, message);
+      console.log('✅ Mensaje enviado confirmado (message_sent):', message.id, '- IGNORADO (ya procesado por message_received)');
+      // No hacemos nada - message_received ya lo manejó
     });
 
     // Confirmación de entrega
