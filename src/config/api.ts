@@ -3,29 +3,20 @@
  * URLs base para diferentes entornos
  */
 
+const PROD_URL = 'https://api.pocketquest.johandev.lat';
+const DEV_URL = 'http://10.0.2.2:3000'; // Android Emulator
+
 /**
- * Selecciona la URL base según el entorno
- *
- * Android Emulator: usa 10.0.2.2 para acceder a localhost
- * iOS Simulator: usa localhost directamente
- * Dispositivo físico: usa tu IP local
+ * Selecciona la URL base automáticamente:
+ * - Si es Desarrollo (__DEV__ es true): Usa localhost (10.0.2.2)
+ * - Si es Producción (Release APK): Usa johandev.lat
  */
-export const API_BASE_URL = 'http://10.0.2.2:3000/api';
-export const WS_URL = 'http://10.0.2.2:3000';
+export const API_BASE_URL = __DEV__ ? `${DEV_URL}/api` : `${PROD_URL}/api`;
+export const WS_URL = __DEV__ ? DEV_URL : PROD_URL;
 
-// Otras opciones (descomentar según necesites):
-
-// Para iOS Simulator:
-// export const API_BASE_URL = 'http://localhost:3000/api';
-// export const WS_URL = 'http://localhost:3000';
-
-// Para dispositivo físico (reemplaza con tu IP local):
-// export const API_BASE_URL = 'http://192.168.1.100:3000/api';
-// export const WS_URL = 'http://192.168.1.100:3000';
-
-// Para producción:
-// export const API_BASE_URL = 'https://tu-api-production.com/api';
-// export const WS_URL = 'https://tu-api-production.com';
+// Otras opciones (referencia):
+// iOS Simulator: 'http://localhost:3000'
+// Físico en LAN: 'http://192.168.1.x:3000'
 
 /**
  * Configuración de timeouts (en milisegundos)

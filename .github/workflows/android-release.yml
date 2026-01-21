@@ -39,6 +39,9 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
       - name: Install Fastlane
         run: |
           cd android
